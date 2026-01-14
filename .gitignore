@@ -1,0 +1,73 @@
+# ======================
+# .NET build artifacts
+# ======================
+bin
+obj
+out
+Debug
+Release
+
+# ======================
+# Rider  JetBrains
+# ======================
+.idea
+.sln.iml
+.DotSettings.user
+.DotSettings
+
+# ======================
+# Visual Studio (just in case)
+# ======================
+.vs
+.user
+.suo
+.userosscache
+.sln.docstates
+
+# ======================
+# OS  Editor junk
+# ======================
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ======================
+# Logs & temp
+# ======================
+.log
+.tmp
+.temp
+
+# ======================
+# NuGet
+# ======================
+.nuget
+packages
+
+# ======================
+# Test  coverage
+# ======================
+TestResults
+coverage
+.coverage
+.coveragexml
+
+# ======================
+# Publishing
+# ======================
+publish
+
+# ======================
+# Environment  secrets
+# ======================
+.env
+.env.
+appsettings.Development.json
+appsettings.Local.json
+
+# ======================
+# Optional profiling
+# ======================
+.prof
+.trace
