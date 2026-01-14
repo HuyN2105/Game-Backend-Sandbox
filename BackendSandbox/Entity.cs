@@ -4,8 +4,7 @@ namespace BackendSandbox;
 
 public class Entity
 {
-    public int X;
-    public int Y;
+    public Vector2 Pos;
     public int Width;
     public int Height;
 
@@ -15,28 +14,31 @@ public class Entity
     public bool IsDead;
     public bool IsHazard;
 
-    public RectangleF Bounds => new RectangleF(X, Y, Width, Height);
+    // Temporary
+    public Color EntityColor;
+    
+    public RectangleF Bounds => new RectangleF(Pos.X, Pos.Y, Width, Height);
 
     public void ChangePos(int x, int y)
     {
-        X = x;
-        Y = y;
+        Pos.X = x;
+        Pos.Y = y;
     }
 
     public bool IsContain(int x, int y)
     {
-        return x >= X &&
-               x <= X + Width &&
-               y >= Y &&
-               y <= Y + Height;
+        return x >= Pos.X &&
+               x <= Pos.X + Width &&
+               y >= Pos.Y &&
+               y <= Pos.Y + Height;
     }
 
     public bool IsCollide(Entity other)
     {
-        return X + Width >= other.X && // r1 right edge past r2 left
-               X <= other.X + other.Width && // r1 left edge past r2 right
-               Y + Height >= other.Y && // r1 top edge past r2 bottom
-               Y <= other.Y + other.Height;
+        return Pos.X + Width >= other.Pos.X && // r1 right edge past r2 left
+               Pos.X <= other.Pos.X + other.Width && // r1 left edge past r2 right
+               Pos.Y + Height >= other.Pos.Y && // r1 top edge past r2 bottom
+               Pos.Y <= other.Pos.Y + other.Height;
     }
 }
 
@@ -44,9 +46,11 @@ class Player : Entity
 {
 
     public float Speed = 300f;
+    public Vector2 LookingDirection = Vector2.Zero;
     
     public Player(int x, int y, int width, int height)
     {
+        EntityColor = Color.Blue;
         ChangePos(x, y);
         Width = width;
         Height = height;
@@ -57,11 +61,11 @@ class Player : Entity
     {
         if (direction == Vector2.Zero)
             return;
-
+        
         direction = Vector2.Normalize(direction);
 
-        X += (int)Math.Round(direction.X * Speed * dt);
-        Y += (int)Math.Round(direction.Y * Speed * dt);
+        Pos.X += (int)Math.Round(direction.X * Speed * dt);
+        Pos.Y += (int)Math.Round(direction.Y * Speed * dt);
     }
 }
 
@@ -85,7 +89,7 @@ class Enemy : Entity
 
         direction = Vector2.Normalize(direction);
 
-        X += (int)Math.Round(direction.X * Speed * dt);
-        Y += (int)Math.Round(direction.Y * Speed * dt);
+        Pos.X += (int)Math.Round(direction.X * Speed * dt);
+        Pos.Y += (int)Math.Round(direction.Y * Speed * dt);
     }
 }

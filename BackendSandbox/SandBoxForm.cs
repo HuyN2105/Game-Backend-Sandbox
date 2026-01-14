@@ -18,12 +18,14 @@ class SandboxForm : Form
     public SandboxForm()
     {
         DoubleBuffered = true;
-        Width = 800;
-        Height = 600;
+        Width = 1280;
+        Height = 720;
 
         _player = new Player(100, 100, 50, 50);
         _enemy = new Enemy(300, 200, 80, 80);
 
+        MouseMove += (_, e) => _player.LookingDirection = new Vector2(e.X, e.Y);
+        
         KeyDown += (_, e) =>
         {
             if (e.KeyCode == Keys.W) up = true;
@@ -70,12 +72,21 @@ class SandboxForm : Form
     protected override void OnPaint(PaintEventArgs e)
     {
         e.Graphics.Clear(Color.Black);
-
+    
+        var radius = Math.Max(_player.Width, _player.Height) + 20;
+        
+        var aimLineEnd = GameMath.AimLine(_player, _player.LookingDirection, radius);
+        
         var brush = _player.IsCollide(_enemy)
             ? Brushes.Red
             : Brushes.Green;
-
+        
         e.Graphics.FillRectangle(brush, _player.Bounds);
         e.Graphics.FillRectangle(Brushes.Blue, _enemy.Bounds);
+        
+        var playerCenter = GameMath.EntityCenter(_player);
+        
+        e.Graphics.DrawLine(Pens.Red, playerCenter.X, playerCenter.Y, aimLineEnd.X, aimLineEnd.Y);
+        
     }
 }
