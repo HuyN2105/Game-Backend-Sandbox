@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using System.Drawing;
 
 namespace BackendSandbox;
 
@@ -16,8 +17,15 @@ public class Entity
 
     // Temporary
     public Color EntityColor;
-    
+
     public RectangleF Bounds => new RectangleF(Pos.X, Pos.Y, Width, Height);
+
+    public Entity(Vector2 pos, int width, int height)
+    {
+        Pos = pos;
+        Width = width;
+        Height = height;
+    }
 
     public void ChangePos(int x, int y)
     {
@@ -44,52 +52,61 @@ public class Entity
 
 class Player : Entity
 {
-
     public float Speed = 300f;
     public Vector2 LookingDirection = Vector2.Zero;
-    
-    public Player(int x, int y, int width, int height)
+
+    public Player(int x, int y, int width, int height) : base(new Vector2(x, y), width, height)
     {
         EntityColor = Color.Blue;
-        ChangePos(x, y);
-        Width = width;
-        Height = height;
         IsOwnedByPlayer = true;
     }
 
-    public void Move(Vector2 direction, float dt)
+    public Player(Vector2 pos, int width, int height) : base(pos, width, height)
+    {
+        EntityColor = Color.Blue;
+        IsOwnedByPlayer = true;
+    }
+
+    public void Move(Vector2 direction, float dt, World.Room currentRoom)
     {
         if (direction == Vector2.Zero)
             return;
-        
+
         direction = Vector2.Normalize(direction);
 
-        Pos.X += (int)Math.Round(direction.X * Speed * dt);
-        Pos.Y += (int)Math.Round(direction.Y * Speed * dt);
+        var moveVector = new Vector2(direction.X * Speed * dt, direction.Y * Speed * dt);
+        var allowedMove = GameLogic.ValidMove(this, moveVector, currentRoom);
+
+        Pos += allowedMove;
     }
 }
 
 class Enemy : Entity
 {
-    
     public float Speed = 200f;
-    
-    public Enemy(int x, int y, int width, int height)
+
+    public Enemy(int x, int y, int width, int height) : base(new Vector2(x, y), width, height)
     {
-        ChangePos(x, y);
-        Width = width;
-        Height = height;
+        EntityColor = Color.Green;
         IsOwnedByPlayer = false;
     }
-    
-    public void Move(Vector2 direction, float dt)
+
+    public Enemy(Vector2 pos, int width, int height) : base(pos, width, height)
+    {
+        EntityColor = Color.Green;
+        IsOwnedByPlayer = false;
+    }
+
+    public void Move(Vector2 direction, float dt, World.Room currentRoom)
     {
         if (direction == Vector2.Zero)
             return;
 
         direction = Vector2.Normalize(direction);
+        
+        var moveVector = new Vector2(direction.X * Speed * dt, direction.Y * Speed * dt);
+        var allowedMove = GameLogic.ValidMove(this, moveVector, currentRoom);
 
-        Pos.X += (int)Math.Round(direction.X * Speed * dt);
-        Pos.Y += (int)Math.Round(direction.Y * Speed * dt);
+        Pos += allowedMove;
     }
 }

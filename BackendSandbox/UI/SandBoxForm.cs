@@ -8,6 +8,8 @@ using System.Windows.Forms;
 
 class SandboxForm : Form
 {
+    public World.Room Room = new World.Room(1280, 720);
+    
     private readonly Player _player;
     private readonly Enemy _enemy;
     private bool up, down, left, right;
@@ -22,7 +24,14 @@ class SandboxForm : Form
         Height = 720;
 
         _player = new Player(100, 100, 50, 50);
-        _enemy = new Enemy(300, 200, 80, 80);
+        
+        _enemy = new Enemy(425, 319, 80, 80);
+
+        _enemy.IsWalkThrough = false;
+        
+        Room.Entities.Add(_player);
+        Room.Entities.Add(_enemy);
+        
 
         MouseMove += (_, e) => _player.LookingDirection = new Vector2(e.X, e.Y);
         
@@ -65,7 +74,7 @@ class SandboxForm : Form
         if (left) direction.X -= 1;
         if (right) direction.X += 1;
 
-        _player.Move(direction, dt);
+        _player.Move(direction, dt, Room);
     }
 
     
