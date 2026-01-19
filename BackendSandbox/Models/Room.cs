@@ -17,7 +17,7 @@ public class World
         public int Height = 720;
 
         public TimeSpan DamageColorTime = TimeSpan.FromMilliseconds(200);
-        
+
         public Room? Up = null;
         public Room? Down = null;
         public Room? Left = null;
@@ -30,6 +30,12 @@ public class World
             Height = height;
         }
 
+        public bool IsOutOfBounds(Vector2 pos)
+        {
+            return pos.X >= Width ||
+                   pos.Y >= Height;
+        }
+
         public void GameProgress(float dt)
         {
             // Iterate BACKWARDS so we can safely remove bullets
@@ -39,10 +45,12 @@ public class World
                 if (obj is Bullet bullet)
                 {
                     bullet.Move(Vector2.Zero, dt, this);
+                    Console.WriteLine($"Bullet pos: {bullet.Pos}");
+                    if (IsOutOfBounds(bullet.Pos)) OtherEntities.RemoveAt(i);
                 }
             }
-    
-            // Cleanup dead enemies here (moved from OnPaint)
+
+            // Clean up dead enemies here (moved from OnPaint)
             for (int i = Enemies.Count - 1; i >= 0; i--)
             {
                 if (Enemies[i].IsDead)

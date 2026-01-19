@@ -18,7 +18,7 @@ public class Entity
     public float LastTakeDamageTime = -1f;
 
     // Temporary
-    public Brush EntityColor;
+    public Brush? EntityColor;
 
     public RectangleF Bounds => new RectangleF(Pos.X, Pos.Y, Width, Height);
 
@@ -48,7 +48,8 @@ public class Entity
         return Pos.X + Width >= other.Pos.X && // r1 right edge past r2 left
                Pos.X <= other.Pos.X + other.Width && // r1 left edge past r2 right
                Pos.Y + Height >= other.Pos.Y && // r1 top edge past r2 bottom
-               Pos.Y <= other.Pos.Y + other.Height;
+               Pos.Y <= other.Pos.Y + other.Height &&
+               other is { IsWalkThrough: false, IsDead: false };
     }
 
     public virtual void TakeDamage(float damage)
@@ -111,7 +112,7 @@ public class Player : Entity
         }
 
         // Now pass the normalized direction
-        currentRoom.OtherEntities.Add(new Bullet(Pos, Width, Height, direction, true));
+        currentRoom.OtherEntities.Add(new Bullet(Pos, Width, Height, direction, true, Brushes.Yellow));
     }
 
     public override void TakeDamage(float damage)
@@ -162,7 +163,7 @@ public class Enemy : Entity
 
     public void Shoot(World.Room currentRoom)
     {
-        currentRoom.OtherEntities.Add(new Bullet(Pos, Width, Height, LookingDirection, false));
+        currentRoom.OtherEntities.Add(new Bullet(Pos, Width, Height, LookingDirection, false, Brushes.Yellow));
     }
 
     public override void TakeDamage(float damage)
@@ -182,22 +183,24 @@ public class Bullet : Entity
     public float damage = 10f;
     public Vector2 MovingDirection = Vector2.Zero;
 
-    public Bullet(int x, int y, int width, int height, Vector2 movingDirection, bool isOwnedByPlayer) : base(
+    public Bullet(int x, int y, int width, int height, Vector2 movingDirection, bool isOwnedByPlayer,
+        Brush entityColor = null) : base(
         new Vector2(x, y), width, height)
     {
         IsWalkThrough = true;
         MovingDirection = movingDirection;
         IsOwnedByPlayer = isOwnedByPlayer;
-        EntityColor = Brushes.Red;
+        EntityColor = entityColor ?? Brushes.Red;
     }
 
-    public Bullet(Vector2 pos, int width, int height, Vector2 movingDirection, bool isOwnedByPlayer) : base(pos, width,
+    public Bullet(Vector2 pos, int width, int height, Vector2 movingDirection, bool isOwnedByPlayer,
+        Brush entityColor = null) : base(pos, width,
         height)
     {
         IsWalkThrough = true;
         MovingDirection = movingDirection;
         IsOwnedByPlayer = isOwnedByPlayer;
-        EntityColor = Brushes.Red;
+        EntityColor = entityColor ?? Brushes.Red;
     }
 
     public override void Move(Vector2 direction, float dt, World.Room currentRoom)

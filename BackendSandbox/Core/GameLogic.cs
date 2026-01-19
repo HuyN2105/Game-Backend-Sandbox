@@ -111,11 +111,12 @@ public static class GameLogic
     public static bool IsBulletHitSomething(Bullet bullet, Vector2 moveVector, World.Room currentRoom)
     {
         Vector2 nextPos = bullet.Pos + moveVector;
-    
-        if(nextPos.X < 0 || nextPos.Y < 0) return true;
-    
-        var testBullet = new Bullet(nextPos, bullet.Width, bullet.Height, bullet.MovingDirection, bullet.IsOwnedByPlayer);
-    
+
+        if (nextPos.X < 0 || nextPos.Y < 0) return true;
+
+        var testBullet = new Bullet(nextPos, bullet.Width, bullet.Height, bullet.MovingDirection,
+            bullet.IsOwnedByPlayer);
+
         foreach (var other in currentRoom.OtherEntities)
         {
             if (other.GetType() == typeof(Bullet) || other.IsWalkThrough) continue;
@@ -135,16 +136,19 @@ public static class GameLogic
             }
         }
 
-        foreach (var player in currentRoom.Players)
+        if (!bullet.IsOwnedByPlayer)
         {
-            if(player.IsDead) continue;
-            if (testBullet.IsCollide(player))
+            foreach (var player in currentRoom.Players)
             {
-                player.TakeDamage(bullet.damage);
-                return true;
+                if (player.IsDead) continue;
+                if (testBullet.IsCollide(player))
+                {
+                    player.TakeDamage(bullet.damage);
+                    return true;
+                }
             }
         }
-    
+
         return false;
     }
 }
