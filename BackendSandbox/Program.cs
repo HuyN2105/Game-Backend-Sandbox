@@ -1,4 +1,8 @@
-﻿namespace BackendSandbox;
+﻿using BackendSandbox.UI;
+using BackendSandbox.Core;
+using BackendSandbox.Models;
+
+namespace BackendSandbox;
 
 using System.Diagnostics;
 
@@ -19,7 +23,7 @@ class Program
             RunVisual();
         }
         else
-            RunHeadless();
+            RunHeadless(args);
     }
 
     static void Update(TimeSpan delta)
@@ -27,30 +31,50 @@ class Program
         Console.WriteLine(delta);
     }
 
-    static void RunHeadless()
+    static void RunHeadless(string[] args)
     {
-        Console.WriteLine("Headless mode");
-        
-        const int tickRate = 60;
-        var tickTime = TimeSpan.FromSeconds(1.0 / tickRate);
+        // --- HEADLESS / SERVER MODE ---
 
-        var stopWatch = Stopwatch.StartNew();
-        var last = stopWatch.Elapsed;
+        var builder = WebApplication.CreateBuilder(args);
 
-        while (true)
+        // 1. Register Game Loop as a Singleton (One instance shared by everyone)
+        builder.Services.AddSingleton<GameLoopService>();
+
+        // 2. Add 'HostedService' wrapper so .NET knows to run it in the background
+        builder.Services.AddHostedService(provider => provider.GetRequiredService<GameLoopService>());
+
+        var app = builder.Build();
+
+        // --- API ENDPOINTS ---
+
+        // GET
+        app.MapGet("/status", () => "Game Server is Running!");
+
+        // GET
+        app.MapGet("/enemies", (GameLoopService gameService) =>
         {
-            var now = stopWatch.Elapsed;
-            var delta = now - last;
-            last = now;
-
-            Update(delta);
-
-            var sleep = tickTime - delta;
-            if (sleep > TimeSpan.Zero)
+            var room = gameService.GameRoom;
+            lock (room.Enemies)
             {
-                Thread.Sleep(sleep);
+                return room.Enemies.Select(e => new
+                {
+                    X = e.Pos.X,
+                    Y = e.Pos.Y,
+                    Health = e.Health
+                });
             }
-        }
+        });
+
+        // POST /spawn
+        app.MapPost("/spawn", (GameLoopService gameService) =>
+        {
+            var newEnemy = new Enemy(100, 100, 50, 50);
+            gameService.GameRoom.Enemies.Add(newEnemy);
+            return Results.Ok("Enemy Spawned");
+        });
+
+        Console.WriteLine("Server listening on http://localhost:5000");
+        app.Run();
     }
 
     static void RunVisual()
