@@ -6,11 +6,11 @@ namespace BackendSandbox.Core;
 
 public class GameLoopService : BackgroundService
 {
-    public World.Room GameRoom { get; private set; }
+    public Room GameRoom { get; private set; }
 
     public GameLoopService()
     {
-        GameRoom = new World.Room(1280, 720);
+        GameRoom = new Room(1280, 720);
         
         GameRoom.Enemies.Add(new Enemy(400, 300, 50, 50));
     }

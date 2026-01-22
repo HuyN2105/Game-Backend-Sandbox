@@ -1,61 +1,98 @@
 ﻿using System.Collections.Generic;
-using System.Drawing;
 using System.Numerics;
-using System.Windows.Forms.VisualStyles;
+using System.Drawing; // For Color
+using BackendSandbox.Core; // To use SpatialGrid
 
-namespace BackendSandbox;
+namespace BackendSandbox.Models;
 
-public class World
+public class Room
 {
-    public class Room
+    public SpatialGrid Grid; // Optimization Grid
+
+    public int WidthInTiles { get; private set; }
+    public int HeightInTiles { get; private set; }
+    public int TileSize { get; private set; } = 64; // Logical size
+
+    public RoomTile[,] Tiles { get; private set; }
+
+    public List<Enemy> Enemies { get; } = new();
+    public List<Player> Players { get; } = new();
+    public List<Entity> OtherEntities { get; } = new();
+
+    public Room(int widthInTiles, int heightInTiles)
     {
-        public List<Enemy> Enemies { get; } = new();
-        public List<Player> Players { get; } = new();
-        public List<Entity> OtherEntities { get; } = new();
+        WidthInTiles = widthInTiles;
+        HeightInTiles = heightInTiles;
+        
+        int pixelWidth = widthInTiles * TileSize;
+        int pixelHeight = heightInTiles * TileSize;
 
-        public int Width = 720;
-        public int Height = 720;
+        Grid = new SpatialGrid(pixelWidth, pixelHeight);
+        Tiles = new RoomTile[widthInTiles, heightInTiles];
 
-        public TimeSpan DamageColorTime = TimeSpan.FromMilliseconds(200);
-
-        public Room? Up = null;
-        public Room? Down = null;
-        public Room? Left = null;
-        public Room? Right = null;
-        public Color BgColor = Color.Black;
-
-        public Room(int width, int height)
+        for (int x = 0; x < widthInTiles; x++)
         {
-            Width = width;
-            Height = height;
-        }
-
-        public bool IsOutOfBounds(Vector2 pos)
-        {
-            return pos.X >= Width ||
-                   pos.Y >= Height;
-        }
-
-        public void GameProgress(float dt)
-        {
-            // Iterate BACKWARDS so we can safely remove bullets
-            for (int i = OtherEntities.Count - 1; i >= 0; i--)
+            for (int y = 0; y < heightInTiles; y++)
             {
-                var obj = OtherEntities[i];
-                if (obj is Bullet bullet)
-                {
-                    bullet.Move(Vector2.Zero, dt, this);
-                    Console.WriteLine($"Bullet pos: {bullet.Pos}");
-                    if (IsOutOfBounds(bullet.Pos)) OtherEntities.RemoveAt(i);
-                }
+                Tiles[x, y] = new RoomTile(TileTypes.Floor);
             }
+        }
+        
+        AddBorders();
+    }
 
-            // Clean up dead enemies here (moved from OnPaint)
-            for (int i = Enemies.Count - 1; i >= 0; i--)
+    private void AddBorders()
+    {
+        for (int x = 0; x < WidthInTiles; x++)
+        {
+            Tiles[x, 0] = new RoomTile(TileTypes.Wall);
+            Tiles[x, HeightInTiles - 1] = new RoomTile(TileTypes.Wall);
+        }
+        for (int y = 0; y < HeightInTiles; y++)
+        {
+            Tiles[0, y] = new RoomTile(TileTypes.Wall);
+            Tiles[WidthInTiles - 1, y] = new RoomTile(TileTypes.Wall);
+        }
+    }
+
+    public RoomTile GetTileAt(int x, int y)
+    {
+        if (x < 0 || y < 0 || x >= WidthInTiles || y >= HeightInTiles)
+            return new RoomTile(TileTypes.Wall); // Treat Out of Bounds as Wall
+        return Tiles[x, y];
+    }
+    
+    public bool IsOutOfBounds(Vector2 pos)
+    {
+        return pos.X < 0 || pos.X > WidthInTiles * TileSize ||
+               pos.Y < 0 || pos.Y > HeightInTiles * TileSize;
+    }
+
+    public void GameProgress(float dt)
+    {
+        // Rebuild Spatial Grid
+        Grid.Clear();
+        foreach (var enemy in Enemies) Grid.Insert(enemy);
+        foreach (var player in Players) Grid.Insert(player);
+
+        // Process Enemies
+        for (int i = Enemies.Count - 1; i >= 0; i--)
+        {
+            if (Enemies[i].IsDead) Enemies.RemoveAt(i);
+            // Enemy movement logic is called from GameLoop or Form Update
+        }
+
+        // 3. Process Bullets
+        for (int i = OtherEntities.Count - 1; i >= 0; i--)
+        {
+            if (OtherEntities[i] is Bullet bullet)
             {
-                if (Enemies[i].IsDead)
+                var candidates = Grid.Retrieve(bullet);
+                bullet.Move(dt, this, candidates);
+
+                if (bullet.IsDead || IsOutOfBounds(bullet.Pos))
                 {
-                    Enemies.RemoveAt(i);
+                    OtherEntities.RemoveAt(i);
                 }
             }
         }

@@ -1,21 +1,22 @@
 ﻿using System.Numerics;
+using BackendSandbox.Models;
 
-namespace BackendSandbox;
+namespace BackendSandbox.Core;
 
 public static class GameMath
 {
-    public static PointF EntityCenter(Entity _Entity)
+    public static PointF EntityCenter(Entity e)
     {
         return new PointF(
-            _Entity.Pos.X + _Entity.Width / 2f,
-            _Entity.Pos.Y + _Entity.Height / 2f
+            e.Pos.X + e.Width / 2f,
+            e.Pos.Y + e.Height / 2f
         );
     }
 
-    public static PointF AimLine(Entity _Entity, Vector2 TargetPos, float LineLength)
+    public static PointF AimLine(Entity entity, Vector2 targetPos, float lineLength)
     {
-        var origin = EntityCenter(_Entity);
-        var target = new PointF(TargetPos);
+        var origin = EntityCenter(entity);
+        var target = new PointF(targetPos);
 
         float dx = target.X - origin.X;
         float dy = target.Y - origin.Y;
@@ -28,10 +29,14 @@ public static class GameMath
         dy /= length;
 
         var end = new PointF(
-            origin.X + dx * LineLength,
-            origin.Y + dy * LineLength
+            origin.X + dx * lineLength,
+            origin.Y + dy * lineLength
         );
         
         return end;
     }
+    
+    public static PointF V2toPF(Vector2 v) => new(v.X, v.Y);
+    
+    public static Vector2 PFtoV2(PointF p) => new(p.X, p.Y);
 }
