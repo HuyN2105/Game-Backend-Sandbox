@@ -3,36 +3,54 @@ using System.Numerics;
 using System.Drawing; // For Brushes, Graphics
 using System.Windows.Forms;
 using BackendSandbox.Core;
-using BackendSandbox.Models; // Needs Room, Player
+using BackendSandbox.Models;
+using BackendSandbox.Utils;
 
 namespace BackendSandbox.UI;
 
 class SandboxForm : Form
 {
-    // Create a 20x12 tile room (approx 1280x768)
-    public Room Room = new Room(20, 12);
-
+    // 1. DECLARE fields here (Definition only)
+    public Room Room;
     private readonly Player _player;
     private readonly Enemy _enemy;
-    private bool _up, _down, _left, _right;
 
+    // Input states
+    private bool _up, _down, _left, _right;
     private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
     private TimeSpan _lastTime;
 
+    // 2. INITIALIZE them inside the Constructor
     public SandboxForm()
     {
         DoubleBuffered = true;
         Width = 1280;
         Height = 720;
 
-        // Center player
-        _player = new Player(200, 200, 32, 32);
-        _enemy = new Enemy(500, 300, 32, 32);
+        // --- A. Load Room Logic ---
+        Room = RoomLoader.InitialLoad();
 
+        // The "Fallback" logic you wanted
+        if (Room == null)
+        {
+            // If file missing, create default empty room
+            Room = new Room(20, 12);
+        }
+
+        // --- B. Setup Entities ---
+        _player = new Player(100, 100, 32, 32);
+
+        // Add player to the room (This logic MUST be in the constructor)
         Room.Players.Add(_player);
-        Room.Enemies.Add(_enemy);
 
-        // --- MOUSE & INPUT ---
+        // Enemies are usually loaded from JSON, but we can add a test one here
+        if (Room.Enemies.Count == 0)
+        {
+            _enemy = new Enemy(500, 300, 32, 32);
+            Room.Enemies.Add(_enemy);
+        }
+
+        // --- C. Setup Input & Game Loop ---
         var localMouse = this.PointToClient(Cursor.Position);
         _player.LookingDirection = new Vector2(localMouse.X, localMouse.Y);
 
@@ -59,7 +77,7 @@ class SandboxForm : Form
             if (e.KeyCode == Keys.D) _right = false;
         };
 
-        // --- GAME LOOP ---
+        // Start Loop
         _lastTime = _stopwatch.Elapsed;
         var timer = new System.Windows.Forms.Timer { Interval = 16 };
         timer.Tick += (_, _) =>
@@ -68,9 +86,9 @@ class SandboxForm : Form
             var dt = (float)(now - _lastTime).TotalSeconds;
             _lastTime = now;
 
-            if (dt > 0.1f) dt = 0.1f; // Cap lag spikes
+            if (dt > 0.1f) dt = 0.1f;
             UpdateGame(dt);
-            Invalidate(); // Redraw
+            Invalidate();
         };
         timer.Start();
     }
@@ -82,6 +100,26 @@ class SandboxForm : Form
         if (_down) dir.Y += 1;
         if (_left) dir.X -= 1;
         if (_right) dir.X += 1;
+
+        Vector2 intendedMove = dir * _player.Speed * dt;
+        Room? newRoom = GameLogic.TrySwitchRoom(_player, intendedMove, Room);
+
+        if (newRoom != null)
+        {
+            // --- SWITCH ROOM LOGIC ---
+
+            // A. Remove player from old room
+            Room.Players.Remove(_player);
+
+            // B. Swap the active room
+            Room = newRoom;
+
+            // C. Add player to new room
+            Room.Players.Add(_player);
+
+            // D. Skip normal movement this frame (to prevent glitches)
+            return;
+        }
 
         _player.Move(dir, dt, Room);
         Room.GameProgress(dt);
@@ -97,15 +135,15 @@ class SandboxForm : Form
         {
             for (int y = 0; y < Room.HeightInTiles; y++)
             {
-                if (Room.Tiles[x, y].IsSolid)
+                // Check bounds safety before drawing
+                var tile = Room.GetTileAt(x, y);
+                if (tile.IsSolid)
                 {
                     e.Graphics.FillRectangle(Brushes.Gray, x * ts, y * ts, ts, ts);
                 }
             }
         }
 
-        var radius = Math.Max(_player.Width, _player.Height) + 20;
-        
         // Draw Player
         if (!_player.IsDead)
             e.Graphics.FillRectangle(_player.EntityColor, _player.Bounds);
@@ -114,20 +152,8 @@ class SandboxForm : Form
         foreach (var en in Room.Enemies)
         {
             e.Graphics.FillRectangle(en.EntityColor, en.Bounds);
-
-            // Draw aim line for an enemy later will be the gun also for AI
-
-            var enemyAimLineEnd = GameMath.AimLine(en, _player.Pos, radius);
-            var enemyCenter = GameMath.EntityCenter(en);
-
-            e.Graphics.DrawLine(Pens.Red, enemyCenter, enemyAimLineEnd);
+            // Optional: Draw aim lines, etc.
         }
-        // Draw aim line for player later will be the gun
-
-        var playerAimLineEnd = GameMath.AimLine(_player, _player.LookingDirection, radius);
-        var playerCenter = GameMath.EntityCenter(_player);
-
-        e.Graphics.DrawLine(Pens.Red, playerCenter, playerAimLineEnd);
 
         // Draw Bullets
         foreach (var obj in Room.OtherEntities)
@@ -135,5 +161,14 @@ class SandboxForm : Form
             if (obj is Bullet)
                 e.Graphics.FillEllipse(Brushes.Yellow, obj.Bounds);
         }
+        
+        string debugText = $"Current Room ID: {Room.RoomId}";
+    
+        // Create a simple font (Arial, Size 16)
+        using (Font font = new Font("Arial", 16, FontStyle.Bold))
+        {
+            e.Graphics.DrawString(debugText, font, Brushes.White, 10, 10);
+        }
+        
     }
 }

@@ -1,12 +1,18 @@
 ﻿namespace BackendSandbox.Models;
 
-public struct RoomTile
+public struct RoomTile(TileTypes tileType)
 {
-    public TileTypes TileType;
-    public bool IsSolid => TileType == TileTypes.Wall;
+    public TileTypes TileType => tileType;
+    public bool IsSolid => TileType == TileTypes.Wall || (TileType == TileTypes.Door && IsClosed);
 
-    public RoomTile(TileTypes tileType)
+    private bool _isClosed = false;
+    public bool IsClosed
     {
-        TileType = tileType;
+        get => TileType == TileTypes.Door && _isClosed;
+        set
+        {
+            if(TileType != TileTypes.Door) return;
+            _isClosed = value;
+        }
     }
 }

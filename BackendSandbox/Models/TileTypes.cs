@@ -3,5 +3,7 @@
 public enum TileTypes
 {
     Wall,
-    Floor
+    Floor,
+    Door,
+    Stair // TODO: implement stair functionality - change levels
 }

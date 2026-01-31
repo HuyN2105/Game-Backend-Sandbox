@@ -1,5 +1,4 @@
 ﻿using System.Numerics;
-using System.Drawing; // For Brushes
 using BackendSandbox.Models;
 
 namespace BackendSandbox.Core;
@@ -25,14 +24,14 @@ public static class GameLogic
                 // Snap to the Left edge of the tile we hit
                 int tileX = (int)((targetX + entity.Width) / currentRoom.TileSize);
                 float wallLeftEdge = tileX * currentRoom.TileSize;
-                
+
                 // Distance = WallLeft - MyRight
-                moveVector.X = wallLeftEdge - (entity.Pos.X + entity.Width) - 0.01f; 
+                moveVector.X = wallLeftEdge - (entity.Pos.X + entity.Width) - 0.01f;
             }
         }
         else if (moveVector.X < 0) // Moving Left
         {
-            // Check Top-Left and Bottom-Left corners
+            // Check the Top-Left and Bottom-Left corners
             if (IsWall(targetX, entity.Pos.Y + epsilon, currentRoom) ||
                 IsWall(targetX, entity.Pos.Y + entity.Height - epsilon, currentRoom))
             {
@@ -152,7 +151,8 @@ public static class GameLogic
         return moveVector;
     }
 
-    public static bool IsBulletHitSomething(Bullet bullet, Vector2 moveVector, Room currentRoom, List<Entity> candidates)
+    public static bool IsBulletHitSomething(Bullet bullet, Vector2 moveVector, Room currentRoom,
+        List<Entity> candidates)
     {
         Vector2 nextPos = bullet.Pos + moveVector;
 
@@ -179,6 +179,7 @@ public static class GameLogic
                     enemy.TakeDamage(bullet.Damage);
                     return true;
                 }
+
                 if (!bullet.IsOwnedByPlayer && other is Player player)
                 {
                     player.TakeDamage(bullet.Damage);
@@ -190,6 +191,83 @@ public static class GameLogic
         }
 
         return false;
+    }
+
+    // In BackendSandbox.Core.GameLogic
+
+    public static Room? TrySwitchRoom(Entity entity, Vector2 moveVector, Room currentRoom)
+    {
+        // Predict where the player will be
+        Vector2 futurePos = entity.Pos + moveVector;
+
+        // FIX: Use the CENTER of the player to check for doors.
+        // This prevents "Out of Bounds" errors when walking slightly off-map.
+        Vector2 centerPos = new Vector2(
+            futurePos.X + entity.Width / 2f,
+            futurePos.Y + entity.Height / 2f
+        );
+
+        if (!IsDoor(centerPos, currentRoom)) return null;
+
+        Room? nextRoom = null;
+        Vector2 newPos = entity.Pos;
+        int ts = currentRoom.TileSize;
+
+        // 1. LEFT TRANSITION
+        if (currentRoom.Left != null && futurePos.X < ts)
+        {
+            nextRoom = currentRoom.Left;
+            newPos.X = (nextRoom.WidthInTiles - 2) * ts;
+            newPos.Y = SnapToGrid(entity.Pos.Y, ts);
+        }
+
+        // 2. RIGHT TRANSITION
+        else if (currentRoom.Right != null && futurePos.X > (currentRoom.WidthInTiles - 2) * ts)
+        {
+            nextRoom = currentRoom.Right;
+            newPos.X = 1 * ts;
+            newPos.Y = SnapToGrid(entity.Pos.Y, ts);
+        }
+
+        // 3. UP TRANSITION
+        else if (currentRoom.Up != null && futurePos.Y < ts)
+        {
+            nextRoom = currentRoom.Up;
+            newPos.Y = (nextRoom.HeightInTiles - 2) * ts;
+            newPos.X = SnapToGrid(entity.Pos.X, ts);
+        }
+
+        // 4. DOWN TRANSITION
+        else if (currentRoom.Down != null && futurePos.Y > (currentRoom.HeightInTiles - 2) * ts)
+        {
+            nextRoom = currentRoom.Down;
+            newPos.Y = 1 * ts;
+            newPos.X = SnapToGrid(entity.Pos.X, ts);
+        }
+
+        if (nextRoom != null)
+        {
+            entity.Pos = newPos;
+            return nextRoom;
+        }
+
+        return null;
+    }
+
+    private static float SnapToGrid(float val, int tileSize)
+    {
+        // Aligns player to the center of the door path
+        return (float)Math.Round(val / tileSize) * tileSize;
+    }
+
+    private static bool IsDoor(Vector2 pos, Room room)
+    {
+        // Clamp coordinates to prevent "Out of Bounds" returning Wall
+        // We clamp to [0, Width-1]
+        int gridX = Math.Clamp((int)(pos.X / room.TileSize), 0, room.WidthInTiles - 1);
+        int gridY = Math.Clamp((int)(pos.Y / room.TileSize), 0, room.HeightInTiles - 1);
+
+        return room.GetTileAt(gridX, gridY).TileType == TileTypes.Door;
     }
 
     // Helper: Simple boolean check for bullet/logic
@@ -204,8 +282,15 @@ public static class GameLogic
 
     private static bool IsWall(float x, float y, Room room)
     {
-        int gridX = (int)(x / room.TileSize);
-        int gridY = (int)(y / room.TileSize);
+        var gridX = (int)(x / room.TileSize);
+        var gridY = (int)(y / room.TileSize);
+        return room.GetTileAt(gridX, gridY).IsSolid;
+    }
+
+    private static bool IsWall(Vector2 pos, Room room)
+    {
+        var gridX = (int)(pos.X / room.TileSize);
+        var gridY = (int)(pos.Y / room.TileSize);
         return room.GetTileAt(gridX, gridY).IsSolid;
     }
 }
