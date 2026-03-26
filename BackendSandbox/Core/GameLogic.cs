@@ -1,5 +1,7 @@
 ﻿using System.Numerics;
 using BackendSandbox.Models;
+using BackendSandbox.Utils;
+using Microsoft.VisualBasic.Logging;
 
 namespace BackendSandbox.Core;
 
@@ -211,38 +213,38 @@ public static class GameLogic
 
         Room? nextRoom = null;
         Vector2 newPos = entity.Pos;
-        int ts = currentRoom.TileSize;
+        int tileSize = currentRoom.TileSize;
 
         // 1. LEFT TRANSITION
-        if (currentRoom.Left != null && futurePos.X < ts)
+        if (currentRoom.Left != null && futurePos.X < tileSize)
         {
             nextRoom = currentRoom.Left;
-            newPos.X = (nextRoom.WidthInTiles - 2) * ts;
-            newPos.Y = SnapToGrid(entity.Pos.Y, ts);
+            newPos.X = (nextRoom.WidthInTiles - 2) * tileSize;
+            newPos.Y = SnapToGrid(entity.Pos.Y, tileSize);
         }
 
         // 2. RIGHT TRANSITION
-        else if (currentRoom.Right != null && futurePos.X > (currentRoom.WidthInTiles - 2) * ts)
+        else if (currentRoom.Right != null && futurePos.X > (currentRoom.WidthInTiles - 2) * tileSize)
         {
             nextRoom = currentRoom.Right;
-            newPos.X = 1 * ts;
-            newPos.Y = SnapToGrid(entity.Pos.Y, ts);
+            newPos.X = 1 * tileSize;
+            newPos.Y = SnapToGrid(entity.Pos.Y, tileSize);
         }
 
         // 3. UP TRANSITION
-        else if (currentRoom.Up != null && futurePos.Y < ts)
+        else if (currentRoom.Up != null && futurePos.Y < tileSize)
         {
             nextRoom = currentRoom.Up;
-            newPos.Y = (nextRoom.HeightInTiles - 2) * ts;
-            newPos.X = SnapToGrid(entity.Pos.X, ts);
+            newPos.Y = (nextRoom.HeightInTiles - 2) * tileSize;
+            newPos.X = SnapToGrid(entity.Pos.X, tileSize);
         }
 
         // 4. DOWN TRANSITION
-        else if (currentRoom.Down != null && futurePos.Y > (currentRoom.HeightInTiles - 2) * ts)
+        else if (currentRoom.Down != null && futurePos.Y > (currentRoom.HeightInTiles - 2) * tileSize)
         {
             nextRoom = currentRoom.Down;
-            newPos.Y = 1 * ts;
-            newPos.X = SnapToGrid(entity.Pos.X, ts);
+            newPos.Y = 1 * tileSize;
+            newPos.X = SnapToGrid(entity.Pos.X, tileSize);
         }
 
         if (nextRoom != null)
@@ -254,10 +256,55 @@ public static class GameLogic
         return null;
     }
 
+    public static Room? TrySwitchFloor(Entity entity, Vector2 moveVector, Room currentRoom)
+    {
+        // TODO: ON GOING STAIR - SWITCHING FLOORS LOGIC
+        Vector2 futurePos = entity.Pos + moveVector;
+        Vector2 centerPos = new Vector2(
+            futurePos.X + entity.Width / 2f,
+            futurePos.Y + entity.Height / 2f);
+        
+        Room? nextRoom = null;
+        var newPos = entity.Pos;
+        int tileSize = currentRoom.TileSize;
+
+        if (IsStairUp(centerPos, currentRoom))
+        {
+            nextRoom = currentRoom.FloorUp;
+            newPos = SnapToGrid(entity.Pos, tileSize);
+        }
+
+        if (IsStairDown(centerPos, currentRoom))
+        {
+            nextRoom = currentRoom.FloorDown;
+            newPos = SnapToGrid(entity.Pos, tileSize);
+        }
+
+        if (nextRoom != null)
+        {
+            entity.Pos = newPos;
+            if (!IsStairUp(newPos, nextRoom) && !IsStairDown(newPos, nextRoom))
+            {
+                Logger.Warn($"False data detected in room: level{currentRoom.LevelId}-{currentRoom.RoomId}");
+            }
+            return nextRoom;
+        }
+        
+        return null;
+    }
+
     private static float SnapToGrid(float val, int tileSize)
     {
         // Aligns player to the center of the door path
         return (float)Math.Round(val / tileSize) * tileSize;
+    }
+    
+    private static Vector2 SnapToGrid(Vector2 val, int tileSize)
+    {
+        // Aligns player to the center of the door path
+        Vector2 returnVal = new Vector2((float)Math.Round(val.X / tileSize) * tileSize,
+            (float)Math.Round(val.Y / tileSize) * tileSize);
+        return returnVal;
     }
 
     private static bool IsDoor(Vector2 pos, Room room)
@@ -268,6 +315,22 @@ public static class GameLogic
         int gridY = Math.Clamp((int)(pos.Y / room.TileSize), 0, room.HeightInTiles - 1);
 
         return room.GetTileAt(gridX, gridY).TileType == TileTypes.Door;
+    }
+
+    private static bool IsStairUp(Vector2 pos, Room room)
+    {
+        int gridX = Math.Clamp((int)(pos.X / room.TileSize), 0, room.WidthInTiles - 1);
+        int gridY = Math.Clamp((int)(pos.Y / room.TileSize), 0, room.HeightInTiles - 1);
+
+        return room.GetTileAt(gridX, gridY).TileType == TileTypes.StairUp;
+    }
+
+    private static bool IsStairDown(Vector2 pos, Room room)
+    {
+        int gridX = Math.Clamp((int)(pos.X / room.TileSize), 0, room.WidthInTiles - 1);
+        int gridY = Math.Clamp((int)(pos.Y / room.TileSize), 0, room.HeightInTiles - 1);
+
+        return room.GetTileAt(gridX, gridY).TileType == TileTypes.StairDown;
     }
 
     // Helper: Simple boolean check for bullet/logic

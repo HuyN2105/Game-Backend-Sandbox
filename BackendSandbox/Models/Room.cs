@@ -28,18 +28,24 @@ public class Room
     public int RightId { get; set; } = -1;
     public int UpId { get; set; } = -1;
     public int DownId { get; set; } = -1;
+    public int FloorUpId => LevelId + 1;
+    public int FloorDownId => LevelId - 1;
 
     // Cache for loaded rooms
     private Room? _left;
     private Room? _right;
     private Room? _up;
     private Room? _down;
+    private Room? _floorUp;
+    private Room? _floorDown;
 
     // Lazy Loaders
     public Room? Left => (LeftId != -1 && _left == null) ? (_left = RoomLoader.LoadLeft(this)) : _left;
     public Room? Right => (RightId != -1 && _right == null) ? (_right = RoomLoader.LoadRight(this)) : _right;
     public Room? Up => (UpId != -1 && _up == null) ? (_up = RoomLoader.LoadUp(this)) : _up;
     public Room? Down => (DownId != -1 && _down == null) ? (_down = RoomLoader.LoadDown(this)) : _down;
+    public Room? FloorUp => (FloorUpId != -1 && _floorUp == null) ? (_floorUp = RoomLoader.LoadUpFloor(this)) : _floorUp;
+    public Room? FloorDown => (FloorDownId != -1 && _floorDown == null) ? (_floorUp = RoomLoader.LoadDownFloor(this)) : _floorDown;
 
     public Room(int widthInTiles, int heightInTiles)
     {

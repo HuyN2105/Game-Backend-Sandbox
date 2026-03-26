@@ -35,6 +35,18 @@ public static class RoomLoader
         return LoadRoomFromFile($"level{currentRoom.LevelId}-{currentRoom.DownId}.jsonc");
     }
 
+    public static Room LoadUpFloor(Room currentRoom)
+    {
+        if (currentRoom.FloorUpId == -1) return null;
+        return LoadRoomFromFile($"level{currentRoom.FloorUpId}-1.jsonc");
+    }
+
+    public static Room LoadDownFloor(Room currentRoom)
+    {
+        if(currentRoom.FloorDownId == -1) return null;
+        return LoadRoomFromFile($"level{currentRoom.FloorDownId}-1.jsonc");
+    }
+
     private static Room LoadRoomFromFile(string filename)
     {
         // Deserialize into the Simple DTO
