@@ -146,14 +146,11 @@ class SandboxForm : Form
 
         // Draw Player
         if (!_player.IsDead)
-            e.Graphics.FillRectangle(_player.EntityColor, _player.Bounds);
+            e.Graphics.FillRectangle(Brushes.Blue, _player.Bounds);
 
         // Draw Enemies
         foreach (var en in Room.Enemies)
-        {
-            e.Graphics.FillRectangle(en.EntityColor, en.Bounds);
-            // Optional: Draw aim lines, etc.
-        }
+            e.Graphics.FillRectangle(Brushes.Red, en.Bounds);
 
         // Draw Bullets
         foreach (var obj in Room.OtherEntities)
@@ -161,14 +158,13 @@ class SandboxForm : Form
             if (obj is Bullet)
                 e.Graphics.FillEllipse(Brushes.Yellow, obj.Bounds);
         }
-        
+
         string debugText = $"Current Room ID: {Room.RoomId}";
-    
+
         // Create a simple font (Arial, Size 16)
         using (Font font = new Font("Arial", 16, FontStyle.Bold))
         {
             e.Graphics.DrawString(debugText, font, Brushes.White, 10, 10);
         }
-        
     }
 }

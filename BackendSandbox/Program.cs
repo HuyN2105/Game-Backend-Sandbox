@@ -1,5 +1,7 @@
 using BackendSandbox.Core;
+#if WINDOWS
 using BackendSandbox.UI;
+#endif
 
 namespace BackendSandbox;
 
@@ -17,7 +19,12 @@ class Program
 
         if (mode == RunMode.Visual)
         {
+#if WINDOWS
             RunVisual();
+#else
+            Console.WriteLine("Visual mode is only supported on Windows.");
+            RunHeadless(args);
+#endif
         }
         else
         {
@@ -79,10 +86,11 @@ class Program
         Console.WriteLine("WebSocket endpoint available at ws://localhost:5000/ws");
         app.Run();
     }
-
+#if WINDOWS
     static void RunVisual()
     {
         ApplicationConfiguration.Initialize();
         Application.Run(new SandboxForm());
     }
+#endif
 }

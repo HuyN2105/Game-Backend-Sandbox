@@ -16,18 +16,15 @@ public class Entity
     public bool IsWalkThrough;
     public bool IsVisible = true;
     public bool IsDead;
-
-    // Temporary Visualization
-    public Brush EntityColor;
+    
     public RectangleF Bounds => new RectangleF(Pos.X, Pos.Y, Width, Height);
 
-    public Entity(EntityTypes entityType, Vector2 pos, int width, int height, Brush entityColor)
+    public Entity(EntityTypes entityType, Vector2 pos, int width, int height)
     {
         EntityType = entityType;
         Pos = pos;
         Width = width;
         Height = height;
-        EntityColor = entityColor ?? Brushes.White;
     }
 
     public bool IsCollide(Entity other)
@@ -55,7 +52,7 @@ public class Player : Entity
     public float Health = 100f;
 
     public Player(float x, float y, int width, int height)
-        : base(EntityTypes.Player, new Vector2(x, y), width, height, Brushes.Blue)
+        : base(EntityTypes.Player, new Vector2(x, y), width, height)
     {
         IsOwnedByPlayer = true;
     }
@@ -82,7 +79,7 @@ public class Player : Entity
 
         currentRoom.OtherEntities.Add(new Bullet(
             GameMath.PFtoV2(GameMath.AimLine(this, LookingDirection, Math.Max(this.Width, this.Height))), 10, 10,
-            direction, true, Brushes.Yellow));
+            direction, true));
     }
 
     public override void TakeDamage(float damage)
@@ -98,7 +95,7 @@ public class Enemy : Entity
     public float Health = 50f;
 
     public Enemy(float x, float y, int width, int height)
-        : base(EntityTypes.Enemy, new Vector2(x, y), width, height, Brushes.Red)
+        : base(EntityTypes.Enemy, new Vector2(x, y), width, height)
     {
         IsOwnedByPlayer = false;
     }
@@ -129,8 +126,8 @@ public class Bullet : Entity
     public float Damage = 10f;
     public Vector2 MovingDirection;
 
-    public Bullet(Vector2 pos, int width, int height, Vector2 movingDirection, bool isOwnedByPlayer, Brush color)
-        : base(EntityTypes.Bullet, pos, width, height, color)
+    public Bullet(Vector2 pos, int width, int height, Vector2 movingDirection, bool isOwnedByPlayer)
+        : base(EntityTypes.Bullet, pos, width, height)
     {
         IsWalkThrough = true;
         MovingDirection = movingDirection;

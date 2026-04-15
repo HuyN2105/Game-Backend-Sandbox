@@ -51,7 +51,7 @@ public static class GameLogic
 
         // --- Entity Collision ---
         var testEntityX = new Entity(entity.EntityType, new Vector2(targetX, entity.Pos.Y + epsilon), entity.Width,
-            (int)Math.Round(entity.Height - (2 * epsilon)), Brushes.Transparent);
+            (int)Math.Round(entity.Height - (2 * epsilon)));
 
         foreach (var other in currentRoom.OtherEntities)
         {
@@ -120,7 +120,7 @@ public static class GameLogic
 
         // --- Entity Collision ---
         var testEntityY = new Entity(entity.EntityType, new Vector2(correctedX + epsilon, targetY),
-            (int)Math.Round(entity.Width - (2 * epsilon)), entity.Height, Brushes.Transparent);
+            (int)Math.Round(entity.Width - (2 * epsilon)), entity.Height);
 
         foreach (var other in currentRoom.OtherEntities)
         {
@@ -166,7 +166,7 @@ public static class GameLogic
 
         // Check Entities
         var testBullet = new Bullet(nextPos, bullet.Width, bullet.Height, bullet.MovingDirection,
-            bullet.IsOwnedByPlayer, Brushes.Transparent);
+            bullet.IsOwnedByPlayer);
 
         foreach (var other in candidates)
         {
