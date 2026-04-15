@@ -6,6 +6,7 @@ namespace BackendSandbox.Models;
 
 public class Entity
 {
+    public Guid Id { get; } = Guid.NewGuid();
     public EntityTypes EntityType;
     public Vector2 Pos;
     public int Width;

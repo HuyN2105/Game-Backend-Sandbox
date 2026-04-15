@@ -1,10 +1,7 @@
-﻿using BackendSandbox.UI;
 using BackendSandbox.Core;
-using BackendSandbox.Models;
+using BackendSandbox.UI;
 
 namespace BackendSandbox;
-
-using System.Diagnostics;
 
 enum RunMode
 {
@@ -23,57 +20,63 @@ class Program
             RunVisual();
         }
         else
+        {
             RunHeadless(args);
-    }
-
-    static void Update(TimeSpan delta)
-    {
-        Console.WriteLine(delta);
+        }
     }
 
     static void RunHeadless(string[] args)
     {
-        // --- HEADLESS / SERVER MODE ---
-
         var builder = WebApplication.CreateBuilder(args);
+        builder.WebHost.UseUrls("http://0.0.0.0:5000");
 
-        // 1. Register Game Loop as a Singleton (One instance shared by everyone)
         builder.Services.AddSingleton<GameLoopService>();
-
-        // 2. Add 'HostedService' wrapper so .NET knows to run it in the background
         builder.Services.AddHostedService(provider => provider.GetRequiredService<GameLoopService>());
+        builder.Services.AddSingleton<GameWebSocketHandler>();
 
         var app = builder.Build();
-
-        // --- API ENDPOINTS ---
-
-        // GET
-        app.MapGet("/status", () => "Game Server is Running!");
-
-        // GET
-        app.MapGet("/enemies", (GameLoopService gameService) =>
+        app.UseWebSockets(new WebSocketOptions
         {
-            var room = gameService.GameRoom;
-            lock (room.Enemies)
-            {
-                return room.Enemies.Select(e => new
-                {
-                    X = e.Pos.X,
-                    Y = e.Pos.Y,
-                    Health = e.Health
-                });
-            }
+            KeepAliveInterval = TimeSpan.FromSeconds(30)
         });
 
-        // POST /spawn
+        app.MapGet("/status", () => Results.Ok(new
+        {
+            message = "Game Server is Running!",
+            websocket = "ws://localhost:5000/ws",
+            httpState = "http://localhost:5000/state"
+        }));
+
+        app.MapGet("/state", (GameLoopService gameService) =>
+        {
+            var snapshot = gameService.CreateSnapshot();
+            return Results.Ok(snapshot);
+        });
+
+        app.MapGet("/enemies", (GameLoopService gameService) =>
+        {
+            var snapshot = gameService.CreateSnapshot();
+            return Results.Ok(snapshot.Enemies);
+        });
+
         app.MapPost("/spawn", (GameLoopService gameService) =>
         {
-            var newEnemy = new Enemy(100, 100, 50, 50);
-            gameService.GameRoom.Enemies.Add(newEnemy);
-            return Results.Ok("Enemy Spawned");
+            var enemy = gameService.SpawnEnemy(100, 100);
+            return Results.Ok(new
+            {
+                message = "Enemy spawned.",
+                enemyId = enemy.Id
+            });
+        });
+
+        app.Map("/ws", async context =>
+        {
+            var handler = context.RequestServices.GetRequiredService<GameWebSocketHandler>();
+            await handler.HandleAsync(context, context.RequestAborted);
         });
 
         Console.WriteLine("Server listening on http://localhost:5000");
+        Console.WriteLine("WebSocket endpoint available at ws://localhost:5000/ws");
         app.Run();
     }
 
