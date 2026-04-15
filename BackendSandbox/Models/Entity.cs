@@ -77,9 +77,9 @@ public class Player : Entity
         Vector2 direction = LookingDirection - Pos;
         if (direction != Vector2.Zero) direction = Vector2.Normalize(direction);
 
-        currentRoom.OtherEntities.Add(new Bullet(
-            GameMath.PFtoV2(GameMath.AimLine(this, LookingDirection, Math.Max(this.Width, this.Height))), 10, 10,
-            direction, true));
+        Vector2 spawnPos = GameMath.AimLine(this, LookingDirection, Math.Max(this.Width, this.Height));
+        
+        currentRoom.OtherEntities.Add(new Bullet(spawnPos, 10, 10, direction, true)); 
     }
 
     public override void TakeDamage(float damage)
