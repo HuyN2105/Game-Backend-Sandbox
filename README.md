@@ -1,4 +1,4 @@
 # Game-Backend-Sandbox
 
 Documentation:
-- [WebSocket Integration Guide](C:/Users/HuyN/OneDrive/Desktop/Projects/PBL_GAME/Backend_sandbox/GameSolution/docs/websocket-integration.md)
+- [WebSocket Integration Guide](https://github.com/HuyN2105/Game-Backend-Sandbox/blob/main/docs/websocket-integration.md)
