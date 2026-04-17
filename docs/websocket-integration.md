@@ -2,16 +2,16 @@
 
 ## Purpose
 
-This document explains how the backend WebSocket server works, what messages it accepts, what data it sends back, and what the frontend is expected to do when connecting from Three.js.
+This document defines how the backend WebSocket service works, which messages are supported, and what the frontend should do when integrating with Three.js.
 
-Use this file as the source of truth for integration work between the game backend and the frontend renderer.
+Use this as the integration contract between backend and frontend.
 
 ## Current Server Endpoints
 
-Headless backend base URL:
+Hosted backend base URL:
 
 ```text
-http://localhost:5000
+https://pblgame.huyn.site
 ```
 
 Available endpoints:
@@ -22,19 +22,19 @@ Available endpoints:
 - `POST /spawn`
 - `WS /ws`
 
-## What The Backend Does
+## Backend Behavior
 
-The backend runs an ASP.NET Core server in headless mode and keeps one shared `GameLoopService` alive for the whole process.
+The backend runs ASP.NET Core in headless mode with one shared `GameLoopService`.
 
-Important behavior:
+Key behavior:
 
-- The game loop updates room state in the background.
-- Every WebSocket client connection gets its own `Player`.
-- The player is removed automatically when the socket disconnects.
-- The backend sends a snapshot of the game world every 100ms.
-- The backend is currently authoritative for entity state.
+- The game loop updates room state continuously.
+- Each WebSocket connection gets its own `Player`.
+- The player is removed when the socket disconnects.
+- The server pushes a full `state` snapshot every 100ms.
+- The backend is authoritative for entity state.
 
-This means the frontend should treat the server as the source of truth for positions, health, bullets, and spawned entities.
+Frontend should treat server data as source of truth for positions, health, bullets, and spawned entities.
 
 ## Backend Developer Notes
 
@@ -47,65 +47,58 @@ Relevant files:
 
 Responsibilities:
 
-- `Program.cs` wires up ASP.NET, registers services, and maps routes.
-- `GameWebSocketHandler.cs` owns the WebSocket protocol.
-- `GameLoopService.cs` provides safe mutation methods and snapshot generation.
-- `Entity.cs` now gives every entity a stable `Id`.
+- `Program.cs`: ASP.NET setup, service registration, route mapping.
+- `GameWebSocketHandler.cs`: WebSocket protocol handling.
+- `GameLoopService.cs`: thread-safe game state mutation and snapshots.
+- `Entity.cs`: stable `Id` for each entity.
 
-If backend developers add new gameplay actions, they should update both:
-
-- the WebSocket handler message switch
-- this document's protocol section
-
-If backend developers change the shape of snapshots, they must coordinate with frontend developers before merging because the frontend renderer depends on the JSON shape.
+When backend actions or payload shapes change, update this document and coordinate with frontend before merging.
 
 ## Frontend Developer Notes
 
-The frontend should open one WebSocket connection to:
+Connect using:
 
 ```text
-ws://localhost:5000/ws
+wss://pblgame.huyn.site/ws
 ```
 
-Recommended frontend flow:
+Recommended flow:
 
-1. Open the socket when the game scene loads.
-2. Wait for the `welcome` message.
-3. Store the returned `playerId`.
-4. Listen for `state` messages continuously.
-5. Render entities by their `id`.
-6. Send input messages such as `move`, `look`, and `shoot`.
-7. Remove or clean up scene objects when entities disappear from snapshots.
+1. Open socket when scene loads.
+2. Wait for `welcome`.
+3. Store `playerId`.
+4. Listen for `state` continuously.
+5. Render entities by `id`.
+6. Send input (`move`, `look`, `shoot`).
+7. Remove scene objects for missing entity IDs.
 
-Recommended rendering rule:
+Rendering rule:
 
-- Do not recreate all meshes every frame.
-- Keep a map of `entityId -> mesh`.
-- Update transform data when the entity already exists.
+- Do not recreate all meshes each frame.
+- Maintain `entityId -> mesh`.
+- Update transforms for existing entities.
 - Create meshes only for new IDs.
-- Remove meshes when IDs are missing from the latest snapshot.
+- Remove meshes when IDs disappear from snapshot.
 
 ## WebSocket Lifecycle
 
-When a client connects:
+On connect:
 
-1. The backend accepts the socket.
-2. The backend creates a `Player`.
-3. The backend sends a `welcome` message.
-4. The backend starts streaming `state` messages every 100ms.
+1. Socket accepted.
+2. `Player` created.
+3. `welcome` sent.
+4. `state` streamed every 100ms.
 
-When a client disconnects:
+On disconnect:
 
-1. The socket closes.
-2. The backend removes that player's entity from the room.
+1. Socket closes.
+2. Player entity removed.
 
-## Messages Sent By The Server
+## Server Messages
 
 ### `welcome`
 
-Sent once after connection is accepted.
-
-Example:
+Sent once after connect.
 
 ```json
 {
@@ -124,16 +117,9 @@ Example:
 }
 ```
 
-Meaning:
-
-- `playerId`: the server-side player controlled by this socket
-- `supportedMessages`: commands currently accepted by the server
-
 ### `state`
 
-Sent immediately after connection and then every 100ms.
-
-Example:
+Sent immediately after connect and then every 100ms.
 
 ```json
 {
@@ -169,21 +155,9 @@ Example:
 }
 ```
 
-Meaning:
-
-- `playerId`: the player controlled by this client
-- `snapshot.worldWidth`: world width in pixels
-- `snapshot.worldHeight`: world height in pixels
-- `snapshot.tileSize`: current tile size
-- `snapshot.players`: all players currently in the room
-- `snapshot.enemies`: all enemies currently in the room
-- `snapshot.bullets`: all active bullets currently in the room
-
 ### `pong`
 
-Sent back when the client sends `ping`.
-
-Example:
+Reply to `ping`.
 
 ```json
 {
@@ -194,9 +168,7 @@ Example:
 
 ### `error`
 
-Sent when the client sends bad JSON or an unsupported message.
-
-Example:
+Returned for bad JSON or unsupported message.
 
 ```json
 {
@@ -205,15 +177,11 @@ Example:
 }
 ```
 
-## Messages Sent By The Client
+## Client Messages
 
 All client messages are JSON and must include `type`.
 
 ### `move`
-
-Use this to move the current player.
-
-Example:
 
 ```json
 {
@@ -226,23 +194,12 @@ Example:
 
 Notes:
 
-- `x` and `y` are direction input, not target coordinates
-- they can be negative, zero, or positive
-- they are normalized by the backend player movement code
-- `dt` is optional and defaults to roughly `1 / 60`
-
-Suggested mapping:
-
-- `W` => `{ x: 0, y: -1 }`
-- `S` => `{ x: 0, y: 1 }`
-- `A` => `{ x: -1, y: 0 }`
-- `D` => `{ x: 1, y: 0 }`
+- `x`/`y` are directional input, not target position.
+- Can be negative, zero, or positive.
+- Normalized by backend movement code.
+- `dt` is optional (default ~`1 / 60`).
 
 ### `look`
-
-Use this to set where the player is aiming.
-
-Example:
 
 ```json
 {
@@ -252,16 +209,9 @@ Example:
 }
 ```
 
-Notes:
-
-- `x` and `y` are world-space coordinates
-- for mouse aiming, convert the cursor hit point into the same world coordinate system used by gameplay
+`x`/`y` should be world-space coordinates.
 
 ### `shoot`
-
-Use this to fire a bullet from the current player.
-
-Example:
 
 ```json
 {
@@ -269,11 +219,7 @@ Example:
 }
 ```
 
-### `teleport`
-
-Useful for debugging and testing scenes.
-
-Example:
+### `teleport` (debug)
 
 ```json
 {
@@ -283,11 +229,7 @@ Example:
 }
 ```
 
-### `spawnEnemy`
-
-Useful for testing combat and rendering.
-
-Example:
+### `spawnEnemy` (debug)
 
 ```json
 {
@@ -301,10 +243,6 @@ Example:
 
 ### `snapshot`
 
-Requests an immediate state snapshot.
-
-Example:
-
 ```json
 {
   "type": "snapshot"
@@ -312,10 +250,6 @@ Example:
 ```
 
 ### `ping`
-
-Connection health check.
-
-Example:
 
 ```json
 {
@@ -325,10 +259,8 @@ Example:
 
 ## Frontend Example
 
-Basic browser example:
-
 ```js
-const socket = new WebSocket("ws://localhost:5000/ws");
+const socket = new WebSocket("wss://pblgame.huyn.site/ws");
 const entities = new Map();
 let myPlayerId = null;
 
@@ -352,63 +284,50 @@ socket.addEventListener("message", (event) => {
 });
 
 function sendMove(x, y) {
-  socket.send(JSON.stringify({
-    type: "move",
-    x,
-    y,
-    dt: 1 / 60
-  }));
+  socket.send(JSON.stringify({ type: "move", x, y, dt: 1 / 60 }));
 }
 ```
 
 ## Coordinate Expectations
 
-The backend currently sends entity positions and sizes in gameplay pixel units.
+Backend values are gameplay pixel units.
 
-Frontend developers need to decide how those map into the Three.js scene:
+Frontend should either:
 
-- either use 1 backend pixel = 1 world unit
-- or define a scale factor and apply it consistently everywhere
+- map `1 backend pixel = 1 scene unit`, or
+- apply one consistent scale factor everywhere.
 
-Whatever mapping is chosen, apply the same rule to:
-
-- player positions
-- enemy positions
-- bullet positions
-- mesh sizes
-- aiming coordinates sent in `look`
+Use the same rule for positions, mesh sizes, bullets, and `look` coordinates.
 
 ## Integration Checklist
 
 Backend:
 
-- Run the headless server.
-- Confirm `/status` returns OK.
-- Confirm `ws://localhost:5000/ws` accepts connections.
+- Deploy and run headless server.
+- Confirm `https://pblgame.huyn.site/status` returns OK.
+- Confirm `wss://pblgame.huyn.site/ws` accepts connections.
 - Keep this document updated when protocol changes.
 
 Frontend:
 
-- Connect once per active game session.
+- Connect once per active session.
 - Store `playerId` from `welcome`.
 - Render from `state.snapshot`.
-- Send `move` from keyboard input.
-- Send `look` from mouse aim or camera raycast result.
-- Send `shoot` on fire input.
+- Send `move`, `look`, `shoot` from input.
 - Track entities by `id`.
 
 ## Current Limitations
 
-- Snapshots are full-state pushes, not delta updates.
-- There is no authentication or room selection yet.
-- There is no reconnect session recovery yet.
-- There is no interpolation layer yet on the backend.
-- `spawnEnemy` and `teleport` are currently debug-friendly commands and may need restriction later.
+- Full-state snapshots only (no delta updates).
+- No auth or room selection yet.
+- No reconnect session recovery yet.
+- No backend interpolation yet.
+- `spawnEnemy` and `teleport` are debug-oriented and may be restricted later.
 
 ## Suggested Next Steps
 
-- Add room or match identifiers if multiple sessions are needed.
-- Add explicit message schemas shared by backend and frontend.
-- Add interpolation on the frontend for smoother rendering between snapshots.
-- Add input buffering or sequence numbers if movement prediction is needed.
-- Add a dedicated DTO layer if more entity types are introduced.
+- Add room/match identifiers for multi-session support.
+- Share explicit message schemas between frontend and backend.
+- Add frontend interpolation between snapshots.
+- Add input sequencing/buffering for prediction support.
+- Add dedicated DTOs as entity types grow.
