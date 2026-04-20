@@ -43,7 +43,7 @@ public class GameLoopService : BackgroundService
         }
     }
 
-    public Player AddPlayer(float x = 128f, float y = 128f, int width = 48, int height = 48)
+    public Player AddPlayer(float x = 228f, float y = 228f, int width = 48, int height = 48)
     {
         lock (SyncRoot)
         {

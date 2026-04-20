@@ -98,6 +98,7 @@ public class Room
         for (int i = Enemies.Count - 1; i >= 0; i--)
         {
             if (Enemies[i].IsDead) Enemies.RemoveAt(i);
+            else Enemies[i].UpdateMoveAI(dt, this);
         }
 
         for (int i = OtherEntities.Count - 1; i >= 0; i--)

@@ -38,7 +38,7 @@ class SandboxForm : Form
         }
 
         // --- B. Setup Entities ---
-        _player = new Player(100, 100, 32, 32);
+        _player = new Player(200, 200, 32, 32);
 
         // Add player to the room (This logic MUST be in the constructor)
         Room.Players.Add(_player);

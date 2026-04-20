@@ -16,7 +16,7 @@ public class Entity
     public bool IsWalkThrough;
     public bool IsVisible = true;
     public bool IsDead;
-    
+
     public RectangleF Bounds => new RectangleF(Pos.X, Pos.Y, Width, Height);
 
     public Entity(EntityTypes entityType, Vector2 pos, int width, int height)
@@ -72,14 +72,15 @@ public class Player : Entity
         }
     }
 
-    public void Shoot(Room currentRoom)
+    // TODO: fix the shoot also every other stuff that can cause problems for frontend and websocket
+    public void Shoot(Room currentRoom, Vector2 shootDirection = default)
     {
-        Vector2 direction = LookingDirection - Pos;
+        Vector2 direction = shootDirection == default ? LookingDirection - Pos : shootDirection;
         if (direction != Vector2.Zero) direction = Vector2.Normalize(direction);
 
         Vector2 spawnPos = GameMath.AimLine(this, LookingDirection, Math.Max(this.Width, this.Height));
-        
-        currentRoom.OtherEntities.Add(new Bullet(spawnPos, 10, 10, direction, true)); 
+
+        currentRoom.OtherEntities.Add(new Bullet(spawnPos, 10, 10, direction, true));
     }
 
     public override void TakeDamage(float damage)
@@ -98,6 +99,46 @@ public class Enemy : Entity
         : base(EntityTypes.Enemy, new Vector2(x, y), width, height)
     {
         IsOwnedByPlayer = false;
+    }
+
+    public void UpdateMoveAI(float dt, Room currentRoom)
+    {
+        if (IsDead || currentRoom.Players.Count == 0) return;
+
+        Player? closestPlayer = null;
+        float minDistanceSquared = float.MaxValue;
+
+        foreach (var player in currentRoom.Players)
+        {
+            if (player.IsDead) continue;
+
+            float distanceSquared = Vector2.DistanceSquared(Pos, player.Pos);
+            if (distanceSquared < minDistanceSquared)
+            {
+                minDistanceSquared = distanceSquared;
+                closestPlayer = player;
+            }
+        }
+
+        if (closestPlayer != null)
+        {
+            float stopDistance = 80f;
+            float stopDistanceSquared = stopDistance * stopDistance;
+
+            if (minDistanceSquared > stopDistanceSquared)
+            {
+                Vector2 direction = closestPlayer.Pos - Pos;
+                Move(direction, dt, currentRoom);
+            }
+        }
+    }
+
+    // TODO: Done w this
+    public void UpdateShootAI(float dt, Room currentRoom)
+    {
+        if (IsDead || currentRoom.Players.Count == 0) return;
+        Player? closestPlayer = null;
+        float minDistanceSquared = float.MaxValue;
     }
 
     public override void Move(Vector2 direction, float dt, Room currentRoom)
