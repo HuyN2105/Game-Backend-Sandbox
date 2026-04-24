@@ -50,7 +50,7 @@ class Program
         webSocketOptions.AllowedOrigins.Add("http://localhost:5173"); 
         webSocketOptions.AllowedOrigins.Add("http://127.0.0.1:5173");
 // PRODUCTION DOMAIN
-        // webSocketOptions.AllowedOrigins.Add("https://your-frontend-domain.com"); 
+        webSocketOptions.AllowedOrigins.Add("https://game-soul-knight.vercel.app");
 
 
         app.UseWebSockets(webSocketOptions);
