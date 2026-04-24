@@ -28,7 +28,8 @@ public class GameWebSocketHandler
         using var socket = await context.WebSockets.AcceptWebSocketAsync();
         var player = _gameLoopService.AddPlayer();
         using var sendLock = new SemaphoreSlim(1, 1);
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, context.RequestAborted);
+        using var linkedCts =
+            CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, context.RequestAborted);
 
         try
         {
@@ -151,17 +152,12 @@ public class GameWebSocketHandler
                     _gameLoopService.TeleportPlayer(playerId, position);
                     break;
                 }
-                case "look":
-                {
-                    var target = new Vector2(
-                        GetRequiredSingle(document.RootElement, "x"),
-                        GetRequiredSingle(document.RootElement, "y"));
-                    _gameLoopService.SetPlayerLook(playerId, target);
-                    break;
-                }
                 case "shoot":
                 {
-                    _gameLoopService.Shoot(playerId);
+                    var shootDirection = new Vector2(
+                        GetRequiredSingle(document.RootElement, "x"),
+                        GetRequiredSingle(document.RootElement, "y"));
+                    _gameLoopService.Shoot(playerId, shootDirection);
                     break;
                 }
                 case "spawnEnemy":
@@ -189,7 +185,8 @@ public class GameWebSocketHandler
                 }
                 default:
                 {
-                    await SendErrorAsync(socket, sendLock, $"Unsupported message type '{messageType}'.", cancellationToken);
+                    await SendErrorAsync(socket, sendLock, $"Unsupported message type '{messageType}'.",
+                        cancellationToken);
                     break;
                 }
             }

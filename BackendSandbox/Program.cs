@@ -42,10 +42,18 @@ class Program
         builder.Services.AddSingleton<GameWebSocketHandler>();
 
         var app = builder.Build();
-        app.UseWebSockets(new WebSocketOptions
+        var webSocketOptions = new WebSocketOptions
         {
-            KeepAliveInterval = TimeSpan.FromSeconds(30)
-        });
+            KeepAliveInterval = TimeSpan.FromMinutes(2)
+        };
+
+        webSocketOptions.AllowedOrigins.Add("http://localhost:5173"); 
+        webSocketOptions.AllowedOrigins.Add("http://127.0.0.1:5173");
+// PRODUCTION DOMAIN
+        // webSocketOptions.AllowedOrigins.Add("https://your-frontend-domain.com"); 
+
+
+        app.UseWebSockets(webSocketOptions);
 
         app.MapGet("/status", () => Results.Ok(new
         {

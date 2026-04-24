@@ -52,13 +52,13 @@ class SandboxForm : Form
 
         // --- C. Setup Input & Game Loop ---
         var localMouse = this.PointToClient(Cursor.Position);
-        _player.LookingDirection = new Vector2(localMouse.X, localMouse.Y);
+        var lookingDirection = new Vector2(localMouse.X, localMouse.Y);
 
-        MouseMove += (_, e) => _player.LookingDirection = new Vector2(e.X, e.Y);
+        MouseMove += (_, e) => lookingDirection = new Vector2(e.X, e.Y);
 
         MouseClick += (_, e) =>
         {
-            if (e.Button == MouseButtons.Left) _player.Shoot(Room);
+            if (e.Button == MouseButtons.Left) _player.Shoot(Room, lookingDirection);
         };
 
         KeyDown += (_, e) =>

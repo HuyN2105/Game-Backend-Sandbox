@@ -48,7 +48,6 @@ public class Entity
 public class Player : Entity
 {
     public float Speed = 300f;
-    public Vector2 LookingDirection = Vector2.Zero;
     public float Health = 100f;
 
     public Player(float x, float y, int width, int height)
@@ -75,14 +74,15 @@ public class Player : Entity
     // TODO: fix the shoot also every other stuff that can cause problems for frontend and websocket
     public void Shoot(Room currentRoom, Vector2 shootDirection = default)
     {
-        Vector2 direction = shootDirection == default ? LookingDirection - Pos : shootDirection;
+        Vector2 direction = shootDirection == default ? shootDirection - Pos : shootDirection;
         if (direction != Vector2.Zero) direction = Vector2.Normalize(direction);
 
-        Vector2 spawnPos = GameMath.AimLine(this, LookingDirection, Math.Max(this.Width, this.Height));
+        Vector2 spawnPos = GameMath.AimLine(this, shootDirection, Math.Max(this.Width, this.Height));
 
         currentRoom.OtherEntities.Add(new Bullet(spawnPos, 10, 10, direction, true));
     }
 
+    // TODO: send back information to client
     public override void TakeDamage(float damage)
     {
         Health -= damage;
@@ -99,6 +99,24 @@ public class Enemy : Entity
         : base(EntityTypes.Enemy, new Vector2(x, y), width, height)
     {
         IsOwnedByPlayer = false;
+    }
+
+    public override void Move(Vector2 direction, float dt, Room currentRoom)
+    {
+        if (IsDead) return;
+
+        // Simple AI movement logic would go here
+        if (direction != Vector2.Zero)
+        {
+            direction = Vector2.Normalize(direction);
+            Vector2 moveVector = direction * Speed * dt;
+            Pos += GameLogic.ValidMove(this, moveVector, currentRoom);
+        }
+    }
+
+    public void Shoot(Room currentRoom)
+    {
+        
     }
 
     public void UpdateMoveAI(float dt, Room currentRoom)
@@ -139,19 +157,6 @@ public class Enemy : Entity
         if (IsDead || currentRoom.Players.Count == 0) return;
         Player? closestPlayer = null;
         float minDistanceSquared = float.MaxValue;
-    }
-
-    public override void Move(Vector2 direction, float dt, Room currentRoom)
-    {
-        if (IsDead) return;
-
-        // Simple AI movement logic would go here
-        if (direction != Vector2.Zero)
-        {
-            direction = Vector2.Normalize(direction);
-            Vector2 moveVector = direction * Speed * dt;
-            Pos += GameLogic.ValidMove(this, moveVector, currentRoom);
-        }
     }
 
     public override void TakeDamage(float damage)

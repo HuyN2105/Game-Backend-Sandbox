@@ -95,7 +95,7 @@ public class GameLoopService : BackgroundService
         }
     }
 
-    public bool SetPlayerLook(Guid playerId, Vector2 worldTarget)
+    public bool Shoot(Guid playerId, Vector2 shootDirection)
     {
         lock (SyncRoot)
         {
@@ -105,22 +105,7 @@ public class GameLoopService : BackgroundService
                 return false;
             }
 
-            player.LookingDirection = worldTarget;
-            return true;
-        }
-    }
-
-    public bool Shoot(Guid playerId)
-    {
-        lock (SyncRoot)
-        {
-            var player = FindPlayer(playerId);
-            if (player is null)
-            {
-                return false;
-            }
-
-            player.Shoot(GameRoom);
+            player.Shoot(GameRoom, shootDirection);
             return true;
         }
     }
