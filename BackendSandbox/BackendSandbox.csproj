@@ -20,4 +20,8 @@
         <Compile Remove="UI\**" />
     </ItemGroup>
 
+    <ItemGroup>
+      <PackageReference Include="MongoDB.Driver" Version="3.8.0" />
+    </ItemGroup>
+
 </Project>

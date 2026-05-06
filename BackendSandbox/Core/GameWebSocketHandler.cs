@@ -121,7 +121,7 @@ namespace BackendSandbox.Core
                     serverTimeUtc = DateTimeOffset.UtcNow,
                     supportedMessages = new[]
                     {
-                        "move { x, y, dt? hhh }",
+                        "move { x, y, dt? }",
                         "teleport { x, y }",
                         "look { x, y }",
                         "shoot",

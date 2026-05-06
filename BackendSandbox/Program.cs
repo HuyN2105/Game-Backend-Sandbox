@@ -1,4 +1,5 @@
 using BackendSandbox.Core;
+using BackendSandbox.Utils; //
 #if WINDOWS
 using BackendSandbox.UI;
 #endif
@@ -37,6 +38,9 @@ class Program
         var builder = WebApplication.CreateBuilder(args);
         builder.WebHost.UseUrls("http://0.0.0.0:5000");
 
+        string mongoConnString = "mongodb+srv://huyhoangpbl:HuyDepTraiOk@leveldata.nzvwwtj.mongodb.net/?appName=levelData";
+        builder.Services.AddSingleton(new MongoRoomLoader(mongoConnString, "Pbl"));
+
         builder.Services.AddSingleton<GameLoopService>();
         builder.Services.AddHostedService(provider => provider.GetRequiredService<GameLoopService>());
         builder.Services.AddSingleton<GameWebSocketHandler>();
@@ -52,8 +56,7 @@ class Program
         app.MapGet("/status", () => Results.Ok(new
         {
             message = "Game Server is Running!",
-            websocket = "ws://localhost:5000/ws",
-            httpState = "http://localhost:5000/state"
+            websocket = "ws://localhost:5000/ws"
         }));
 
         app.Map("/ws", async context =>
@@ -62,10 +65,11 @@ class Program
             await handler.HandleAsync(context, context.RequestAborted);
         });
 
-        Console.WriteLine("Server listening on http://localhost:5000");
+        Console.WriteLine("Server listening on http://0.0.0.0:5000");
         Console.WriteLine("WebSocket endpoint available at ws://localhost:5000/ws");
         app.Run();
     }
+
 #if WINDOWS
     static void RunVisual()
     {

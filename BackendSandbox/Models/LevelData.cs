@@ -1,7 +1,15 @@
-﻿namespace BackendSandbox.Models;
+﻿using System.Collections.Generic;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
+
+namespace BackendSandbox.Models;
 
 public class LevelData
 {
+    [BsonId]
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string Id { get; set; }
+    
     public int LevelId { get; set; }
     public string Biome { get; set; }
     public int Width { get; set; }
