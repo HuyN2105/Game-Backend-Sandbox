@@ -56,28 +56,6 @@ class Program
             httpState = "http://localhost:5000/state"
         }));
 
-        app.MapGet("/state", (GameLoopService gameService) =>
-        {
-            var snapshot = gameService.CreateSnapshot();
-            return Results.Ok(snapshot);
-        });
-
-        app.MapGet("/enemies", (GameLoopService gameService) =>
-        {
-            var snapshot = gameService.CreateSnapshot();
-            return Results.Ok(snapshot.Enemies);
-        });
-
-        app.MapPost("/spawn", (GameLoopService gameService) =>
-        {
-            var enemy = gameService.SpawnEnemy(100, 100);
-            return Results.Ok(new
-            {
-                message = "Enemy spawned.",
-                enemyId = enemy.Id
-            });
-        });
-
         app.Map("/ws", async context =>
         {
             var handler = context.RequestServices.GetRequiredService<GameWebSocketHandler>();

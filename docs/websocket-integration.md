@@ -2,97 +2,54 @@
 
 ## Purpose
 
-This document defines how the backend WebSocket service works, which messages are supported, and what the frontend should do when integrating with Three.js.
+This document defines the backend WebSocket contract and how the frontend should integrate with the live game state stream.
 
-Use this as the integration contract between backend and frontend.
+## Live Endpoint
 
-## Current Server Endpoints
-
-Hosted backend base URL:
-
-```text
-https://pblgame.huyn.site
-```
-
-Available endpoints:
-
-- `GET /status`
-- `GET /state`
-- `GET /enemies`
-- `POST /spawn`
-- `WS /ws`
-
-## Backend Behavior
-
-The backend runs ASP.NET Core in headless mode with one shared `GameLoopService`.
-
-Key behavior:
-
-- The game loop updates room state continuously.
-- Each WebSocket connection gets its own `Player`.
-- The player is removed when the socket disconnects.
-- The server pushes a full `state` snapshot every 100ms.
-- The backend is authoritative for entity state.
-
-Frontend should treat server data as source of truth for positions, health, bullets, and spawned entities.
-
-## Backend Developer Notes
-
-Relevant files:
-
-- [Program.cs](C:/Users/HuyN/OneDrive/Desktop/Projects/PBL_GAME/Backend_sandbox/GameSolution/BackendSandbox/Program.cs)
-- [GameWebSocketHandler.cs](C:/Users/HuyN/OneDrive/Desktop/Projects/PBL_GAME/Backend_sandbox/GameSolution/BackendSandbox/Core/GameWebSocketHandler.cs)
-- [GameLoopService.cs](C:/Users/HuyN/OneDrive/Desktop/Projects/PBL_GAME/Backend_sandbox/GameSolution/BackendSandbox/Core/GameLoopService.cs)
-- [Entity.cs](C:/Users/HuyN/OneDrive/Desktop/Projects/PBL_GAME/Backend_sandbox/GameSolution/BackendSandbox/Models/Entity.cs)
-
-Responsibilities:
-
-- `Program.cs`: ASP.NET setup, service registration, route mapping.
-- `GameWebSocketHandler.cs`: WebSocket protocol handling.
-- `GameLoopService.cs`: thread-safe game state mutation and snapshots.
-- `Entity.cs`: stable `Id` for each entity.
-
-When backend actions or payload shapes change, update this document and coordinate with frontend before merging.
-
-## Frontend Developer Notes
-
-Connect using:
+WebSocket:
 
 ```text
 wss://pblgame.huyn.site/ws
 ```
 
-Recommended flow:
+## Backend Behavior (Summary)
 
-1. Open socket when scene loads.
-2. Wait for `welcome`.
-3. Store `playerId`.
-4. Listen for `state` continuously.
-5. Render entities by `id`.
-6. Send input (`move`, `look`, `shoot`).
-7. Remove scene objects for missing entity IDs.
+- ASP.NET Core runs headless with one `GameLoopService`.
+- Each WebSocket connection gets a dedicated `Player` and room instance.
+- Player and room are removed on disconnect.
+- The backend is authoritative for movement and state.
+- The server streams live state at a fixed interval.
 
-Rendering rule:
+Frontend must treat server data as the source of truth.
 
-- Do not recreate all meshes each frame.
-- Maintain `entityId -> mesh`.
+## Frontend Integration (Recommended Flow)
+
+1. Connect to `wss://pblgame.huyn.site/ws`.
+2. Wait for `welcome` to get `playerId`.
+3. Listen for live state messages.
+4. Render entities using stable IDs and update transforms only.
+5. Send input messages (`move`, `look`, `shoot`, etc).
+
+### Rendering Rule
+
+- Keep a `entityId -> mesh` map.
 - Update transforms for existing entities.
-- Create meshes only for new IDs.
-- Remove meshes when IDs disappear from snapshot.
+- Create only for new IDs.
+- Remove meshes when IDs disappear.
 
 ## WebSocket Lifecycle
 
 On connect:
 
 1. Socket accepted.
-2. `Player` created.
+2. Player created.
 3. `welcome` sent.
-4. `state` streamed every 100ms.
+4. Live state streamed periodically.
 
 On disconnect:
 
 1. Socket closes.
-2. Player entity removed.
+2. Player and room are removed.
 
 ## Server Messages
 
@@ -109,7 +66,7 @@ Sent once after connect.
     "move { x, y, dt? }",
     "teleport { x, y }",
     "look { x, y }",
-    "shoot",
+    "shoot { x, y }",
     "spawnEnemy { x, y, width?, height? }",
     "snapshot",
     "ping"
@@ -117,41 +74,25 @@ Sent once after connect.
 }
 ```
 
-### `state`
+> Note: treat `supportedMessages` as informational only. Always follow the message formats below.
 
-Sent immediately after connect and then every 100ms.
+### `LiveData` (state stream)
+
+The backend currently streams `LiveData` payloads (not `type: "state"`). Expect this format for each tick:
 
 ```json
 {
-  "type": "state",
-  "playerId": "e04869d4-fd9c-438e-9833-ed94aea1324a",
-  "serverTimeUtc": "2026-04-15T16:03:01.3215737+00:00",
-  "snapshot": {
-    "worldWidth": 81920,
-    "worldHeight": 46080,
-    "tileSize": 64,
-    "players": [
-      {
-        "id": "e04869d4-fd9c-438e-9833-ed94aea1324a",
-        "x": 128,
-        "y": 128,
-        "width": 48,
-        "height": 48,
-        "health": 100
-      }
-    ],
-    "enemies": [
-      {
-        "id": "b78912e7-c65f-4322-8664-793e4f0a929d",
-        "x": 400,
-        "y": 300,
-        "width": 50,
-        "height": 50,
-        "health": 50
-      }
-    ],
-    "bullets": []
-  }
+  "DataId": "LiveData",
+  "PlayerX": 128,
+  "PlayerY": 128,
+  "CurrentPlayerHp": 100,
+  "Speed": 400,
+  "Spawns": [
+    { "X": 400, "Y": 300, "CurrentHp": 50, "Speed": 200 }
+  ],
+  "Bullets": [
+    { "X": 220, "Y": 180, "DirectionX": 1, "DirectionY": 0 }
+  ]
 }
 ```
 
@@ -168,7 +109,7 @@ Reply to `ping`.
 
 ### `error`
 
-Returned for bad JSON or unsupported message.
+Returned for bad JSON or unsupported message types.
 
 ```json
 {
@@ -193,10 +134,7 @@ All client messages are JSON and must include `type`.
 ```
 
 Notes:
-
-- `x`/`y` are directional input, not target position.
-- Can be negative, zero, or positive.
-- Normalized by backend movement code.
+- `x`/`y` are directional input.
 - `dt` is optional (default ~`1 / 60`).
 
 ### `look`
@@ -209,13 +147,13 @@ Notes:
 }
 ```
 
-`x`/`y` should be world-space coordinates.
-
 ### `shoot`
 
 ```json
 {
-  "type": "shoot"
+  "type": "shoot",
+  "x": 1,
+  "y": 0
 }
 ```
 
@@ -276,10 +214,10 @@ socket.addEventListener("message", (event) => {
     return;
   }
 
-  if (message.type === "state") {
-    syncPlayers(message.snapshot.players);
-    syncEnemies(message.snapshot.enemies);
-    syncBullets(message.snapshot.bullets);
+  if (message.DataId === "LiveData") {
+    syncPlayer(message.PlayerX, message.PlayerY, message.CurrentPlayerHp);
+    syncEnemies(message.Spawns);
+    syncBullets(message.Bullets);
   }
 });
 
@@ -297,37 +235,28 @@ Frontend should either:
 - map `1 backend pixel = 1 scene unit`, or
 - apply one consistent scale factor everywhere.
 
-Use the same rule for positions, mesh sizes, bullets, and `look` coordinates.
+Use the same rule for positions, sizes, bullets, and `look` coordinates.
 
 ## Integration Checklist
-
-Backend:
-
-- Deploy and run headless server.
-- Confirm `https://pblgame.huyn.site/status` returns OK.
-- Confirm `wss://pblgame.huyn.site/ws` accepts connections.
-- Keep this document updated when protocol changes.
 
 Frontend:
 
 - Connect once per active session.
 - Store `playerId` from `welcome`.
-- Render from `state.snapshot`.
-- Send `move`, `look`, `shoot` from input.
-- Track entities by `id`.
+- Render from `LiveData`.
+- Send `move`, `look`, `shoot` based on input.
+- Track entities by ID.
 
 ## Current Limitations
 
-- Full-state snapshots only (no delta updates).
-- No auth or room selection yet.
-- No reconnect session recovery yet.
-- No backend interpolation yet.
-- `spawnEnemy` and `teleport` are debug-oriented and may be restricted later.
+- Full-state streaming only (no deltas).
+- No auth or room selection.
+- No reconnect session recovery.
+- `spawnEnemy` and `teleport` are debug-only and may be restricted.
 
 ## Suggested Next Steps
 
 - Add room/match identifiers for multi-session support.
-- Share explicit message schemas between frontend and backend.
-- Add frontend interpolation between snapshots.
-- Add input sequencing/buffering for prediction support.
-- Add dedicated DTOs as entity types grow.
+- Share explicit JSON schemas for each message type.
+- Add client-side interpolation.
+- Add input sequencing for prediction.
