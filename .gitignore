@@ -65,6 +65,7 @@ publish
 .env.
 appsettings.Development.json
 appsettings.Local.json
+appsettings.json
 
 # ======================
 # Optional profiling
