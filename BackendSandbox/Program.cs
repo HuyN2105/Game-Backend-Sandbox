@@ -38,8 +38,8 @@ class Program
         var builder = WebApplication.CreateBuilder(args);
         builder.WebHost.UseUrls("http://0.0.0.0:5000");
 
-        string mongoConnString = Environment.GetEnvironmentVariable("MONGODB_URI") 
-                                 ?? "mongodb://localhost:27017"; // Fallback for local dev
+        string? mongoConnString = Environment.GetEnvironmentVariable("MONGODB_URI") 
+                                  ?? builder.Configuration.GetConnectionString("MongoDb");
         builder.Services.AddSingleton(new MongoRoomLoader(mongoConnString, "Pbl"));
 
         builder.Services.AddSingleton<GameLoopService>();

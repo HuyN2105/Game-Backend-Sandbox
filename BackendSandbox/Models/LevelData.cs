@@ -4,6 +4,7 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace BackendSandbox.Models;
 
+[BsonIgnoreExtraElements]
 public class LevelData
 {
     [BsonId]
@@ -11,6 +12,8 @@ public class LevelData
     public string Id { get; set; }
     
     public int LevelId { get; set; }
+    
+    [BsonElement("biome")]
     public string Biome { get; set; }
     public int Width { get; set; }
     public int Height { get; set; }
@@ -24,6 +27,7 @@ public class LevelData
     public int DownId { get; set; } = -1;
 
     // The raw 1D array from the file
+    [BsonElement("tiles")]
     public int[] Tiles { get; set; }
 
     // The raw spawns list

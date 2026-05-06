@@ -11,9 +11,11 @@ public class GameLoopService : BackgroundService
 {
     // Dictionary of active rooms mapped by PlayerId
     private readonly ConcurrentDictionary<Guid, Room> _activeRooms = new();
+    private readonly MongoRoomLoader _mongoLoader;
 
-    public GameLoopService()
+    public GameLoopService(MongoRoomLoader mongoLoader)
     {
+        _mongoLoader = mongoLoader;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -54,7 +56,7 @@ public class GameLoopService : BackgroundService
         var player = new Player(x, y, width, height);
 
         // Create a brand new unique room for this new connection
-        var room = RoomLoader.InitialLoad() ?? new Room(20, 12);
+        var room = _mongoLoader.LoadInitialRoom();
 
         // Optional: Add a test enemy to the new room
         room.Enemies.Add(new Enemy(400, 300, 50, 50));
@@ -73,7 +75,7 @@ public class GameLoopService : BackgroundService
     }
 
     // Helper to find a specific player's room
-    private Room? GetRoomForPlayer(Guid playerId)
+    public Room? GetRoomForPlayer(Guid playerId)
     {
         _activeRooms.TryGetValue(playerId, out var room);
         return room;

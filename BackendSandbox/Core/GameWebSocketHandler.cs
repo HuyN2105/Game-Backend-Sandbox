@@ -224,6 +224,49 @@ namespace BackendSandbox.Core
 
             await SendJsonAsync(socket, sendLock, liveDataPayload, cancellationToken);
         }
+        
+        private async Task SendRoomSwitchAsync(
+            WebSocket socket,
+            SemaphoreSlim sendLock,
+            Room room,
+            CancellationToken cancellationToken)
+        {
+            var msg = new RoomSwitchMessage
+            {
+                DataId = "RoomSwitch",
+                LevelId = room.LevelId,
+                RoomId = room.RoomId,
+                Width = room.WidthInTiles,
+                Height = room.HeightInTiles,
+                TileSize = room.TileSize,
+                LeftId = room.LeftId == -1 ? null : room.LeftId,
+                RightId = room.RightId == -1 ? null : room.RightId,
+                UpId = room.UpId == -1 ? null : room.UpId,
+                DownId = room.DownId == -1 ? null : room.DownId,
+                Tiles = new List<int>()
+            };
+
+            // Map the 2D RoomTile array back to the flat 1D JSON list
+            for (int y = 0; y < room.HeightInTiles; y++)
+            {
+                for (int x = 0; x < room.WidthInTiles; x++)
+                {
+                    var tile = room.GetTileAt(x, y);
+                    
+                    // Convert Enum back to the JSON map integers
+                    int tileValue = tile.TileType switch
+                    {
+                        TileTypes.Wall => 0,
+                        TileTypes.Floor => 1,
+                        TileTypes.Door => 2,
+                        _ => 1
+                    };
+                    msg.Tiles.Add(tileValue);
+                }
+            }
+
+            await SendJsonAsync(socket, sendLock, msg, cancellationToken);
+        }
 
         private async Task ProcessMessageAsync(
             WebSocket socket,
@@ -250,6 +293,23 @@ namespace BackendSandbox.Core
                             GetRequiredSingle(document.RootElement, "x"),
                             GetRequiredSingle(document.RootElement, "y"));
                         var dt = Math.Clamp(GetOptionalSingle(document.RootElement, "dt") ?? (1f / 60f), 0.001f, 0.25f);
+
+                        // Get the player's current room using the method we just made public
+                        var currentRoom = _gameLoopService.GetRoomForPlayer(playerId);
+                        var player = currentRoom?.Players.FirstOrDefault(p => p.Id == playerId);
+                        
+                        if (player != null && currentRoom != null)
+                        {
+                            // Check if this movement pushes the player through a door
+                            var nextRoom = GameLogic.TrySwitchRoom(player, direction * player.Speed * dt, currentRoom);
+                            if (nextRoom != null)
+                            {
+                                // Send the NEW map data to the frontend
+                                await SendRoomSwitchAsync(socket, sendLock, nextRoom, cancellationToken);
+                            }
+                        }
+                        
+                        // 4. Actually move the player in the physics engine
                         _gameLoopService.MovePlayer(playerId, direction, dt);
                         break;
                     }
@@ -257,7 +317,7 @@ namespace BackendSandbox.Core
                     {
                         var position = new Vector2(
                             GetRequiredSingle(document.RootElement, "x"),
-                            GetRequiredSingle(document.RootElement, "y"));
+                            GetRequiredSingle(document.RootElement, "y"));  
                         _gameLoopService.TeleportPlayer(playerId, position);
                         break;
                     }
