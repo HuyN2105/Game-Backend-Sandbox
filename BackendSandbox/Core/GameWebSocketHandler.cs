@@ -87,7 +87,7 @@ namespace BackendSandbox.Core
 {
     public class GameWebSocketHandler
     {
-        private static readonly TimeSpan SnapshotInterval = TimeSpan.FromMilliseconds(20);
+        private static readonly TimeSpan SnapshotInterval = TimeSpan.FromSeconds(1.0 / 64.0);
         private readonly GameLoopService _gameLoopService;
         private readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -116,16 +116,16 @@ namespace BackendSandbox.Core
             {
                 await SendJsonAsync(socket, sendLock, new
                 {
-                    type = "welcome",
-                    playerId = player.Id,
+                    type = "Welcome",
+                    PlayerId = player.Id,
                     serverTimeUtc = DateTimeOffset.UtcNow,
                     supportedMessages = new[]
                     {
-                        "move { x, y, dt? }",
-                        "teleport { x, y }",
-                        "look { x, y }",
+                        "move { X, Y, Dt? }",
+                        "teleport { X, Y }",
+                        "look { X, Y }",
                         "shoot",
-                        "spawnEnemy { x, y, width?, height? }",
+                        "spawnEnemy { X, Y, Width?, Height? }",
                         "snapshot",
                         "ping"
                     }
@@ -151,7 +151,7 @@ namespace BackendSandbox.Core
         private async Task ReceiveLoopAsync(
             WebSocket socket,
             SemaphoreSlim sendLock,
-            Guid playerId,
+            Guid PlayerId,
             CancellationToken cancellationToken)
         {
             // Keeps running as long as the socket is open
@@ -163,36 +163,36 @@ namespace BackendSandbox.Core
                     return;
                 }
 
-                await ProcessMessageAsync(socket, sendLock, playerId, payload, cancellationToken);
+                await ProcessMessageAsync(socket, sendLock, PlayerId, payload, cancellationToken);
             }
         }
 
         private async Task SendSnapshotsAsync(
             WebSocket socket,
             SemaphoreSlim sendLock,
-            Guid playerId,
+            Guid PlayerId,
             CancellationToken cancellationToken)
         {
-            await SendSnapshotAsync(socket, sendLock, playerId, cancellationToken);
+            await SendSnapshotAsync(socket, sendLock, PlayerId, cancellationToken);
 
             using var timer = new PeriodicTimer(SnapshotInterval);
             while (await timer.WaitForNextTickAsync(cancellationToken) && socket.State == WebSocketState.Open)
             {
-                await SendSnapshotAsync(socket, sendLock, playerId, cancellationToken);
+                await SendSnapshotAsync(socket, sendLock, PlayerId, cancellationToken);
             }
         }
 
         private async Task SendSnapshotAsync(
             WebSocket socket,
             SemaphoreSlim sendLock,
-            Guid playerId,
+            Guid PlayerId,
             CancellationToken cancellationToken)
         {
-            var snapshot = _gameLoopService.CreateSnapshot(playerId);
+            var snapshot = _gameLoopService.CreateSnapshot(PlayerId);
 
             if (snapshot == null) return;
 
-            var currentPlayer = snapshot.Players.FirstOrDefault(p => p.Id == playerId);
+            var currentPlayer = snapshot.Players.FirstOrDefault(p => p.Id == PlayerId);
 
             if (currentPlayer == null) return;
 
@@ -271,32 +271,34 @@ namespace BackendSandbox.Core
         private async Task ProcessMessageAsync(
             WebSocket socket,
             SemaphoreSlim sendLock,
-            Guid playerId,
+            Guid PlayerId,
             string payload,
             CancellationToken cancellationToken)
         {
             try
             {
                 using var document = JsonDocument.Parse(payload);
-                if (!document.RootElement.TryGetProperty("type", out var typeElement))
+                
+                
+                if (!document.RootElement.TryGetProperty("EventId", out var typeElement))
                 {
                     await SendErrorAsync(socket, sendLock, "Message is missing a type field.", cancellationToken);
                     return;
                 }
 
-                var messageType = typeElement.GetString();
-                switch (messageType)
+                var eventType = typeElement.GetString();
+                switch (eventType)
                 {
-                    case "move":
+                    case "Move":
                     {
                         var direction = new Vector2(
-                            GetRequiredSingle(document.RootElement, "x"),
-                            GetRequiredSingle(document.RootElement, "y"));
-                        var dt = Math.Clamp(GetOptionalSingle(document.RootElement, "dt") ?? (1f / 60f), 0.001f, 0.25f);
+                            GetRequiredSingle(document.RootElement, "DirectionX"),
+                            GetRequiredSingle(document.RootElement, "DirectionY"));
+                        var dt = Math.Clamp(GetOptionalSingle(document.RootElement, "Dt") ?? (1f / 60f), 0.001f, 0.25f);
 
                         // Get the player's current room using the method we just made public
-                        var currentRoom = _gameLoopService.GetRoomForPlayer(playerId);
-                        var player = currentRoom?.Players.FirstOrDefault(p => p.Id == playerId);
+                        var currentRoom = _gameLoopService.GetRoomForPlayer(PlayerId);
+                        var player = currentRoom?.Players.FirstOrDefault(p => p.Id == PlayerId);
                         
                         if (player != null && currentRoom != null)
                         {
@@ -309,39 +311,39 @@ namespace BackendSandbox.Core
                             }
                         }
                         
-                        // 4. Actually move the player in the physics engine
-                        _gameLoopService.MovePlayer(playerId, direction, dt);
+                        // Actually move the player in the physics engine
+                        _gameLoopService.MovePlayer(PlayerId, direction, dt);
                         break;
                     }
-                    case "teleport":
+                    case "Teleport":
                     {
                         var position = new Vector2(
-                            GetRequiredSingle(document.RootElement, "x"),
-                            GetRequiredSingle(document.RootElement, "y"));  
-                        _gameLoopService.TeleportPlayer(playerId, position);
+                            GetRequiredSingle(document.RootElement, "X"),
+                            GetRequiredSingle(document.RootElement, "Y"));  
+                        _gameLoopService.TeleportPlayer(PlayerId, position);
                         break;
                     }
-                    case "shoot":
+                    case "Shoot":
                     {
                         var shootDirection = new Vector2(
-                            GetRequiredSingle(document.RootElement, "x"),
-                            GetRequiredSingle(document.RootElement, "y"));
-                        _gameLoopService.Shoot(playerId, shootDirection);
+                            GetRequiredSingle(document.RootElement, "X"),
+                            GetRequiredSingle(document.RootElement, "Y"));
+                        _gameLoopService.Shoot(PlayerId, shootDirection);
                         break;
                     }
-                    case "spawnEnemy":
+                    case "SpawnEnemy":
                     {
-                        var x = GetRequiredSingle(document.RootElement, "x");
-                        var y = GetRequiredSingle(document.RootElement, "y");
-                        _gameLoopService.SpawnEnemy(playerId, x, y);
+                        var x = GetRequiredSingle(document.RootElement, "X");
+                        var y = GetRequiredSingle(document.RootElement, "Y");
+                        _gameLoopService.SpawnEnemy(PlayerId, x, y);
                         break;
                     }
-                    case "snapshot":
+                    case "Snapshot":
                     {
-                        await SendSnapshotAsync(socket, sendLock, playerId, cancellationToken);
+                        await SendSnapshotAsync(socket, sendLock, PlayerId, cancellationToken);
                         break;
                     }
-                    case "ping":
+                    case "Ping":
                     {
                         await SendJsonAsync(socket, sendLock, new
                         {
@@ -352,7 +354,7 @@ namespace BackendSandbox.Core
                     }
                     default:
                     {
-                        await SendErrorAsync(socket, sendLock, $"Unsupported message type '{messageType}'.",
+                        await SendErrorAsync(socket, sendLock, $"Unsupported message type '{eventType}'.",
                             cancellationToken);
                         break;
                     }

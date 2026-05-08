@@ -201,7 +201,6 @@ public static class GameLogic
         // Predict where the player will be
         Vector2 futurePos = entity.Pos + moveVector;
 
-        // FIX: Use the CENTER of the player to check for doors.
         // This prevents "Out of Bounds" errors when walking slightly off-map.
         Vector2 centerPos = new Vector2(
             futurePos.X + entity.Width / 2f,
