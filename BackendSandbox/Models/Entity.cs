@@ -47,7 +47,7 @@ public class Entity
 
 public class Player : Entity
 {
-    public float Speed = 300f;
+    public float Speed = 60f;
     public float Health = 100f;
 
     public Player(float x, float y, int width, int height)
@@ -74,10 +74,14 @@ public class Player : Entity
     // TODO: fix the shoot also every other stuff that can cause problems for frontend and websocket
     public void Shoot(Room currentRoom, Vector2 shootDirection = default)
     {
-        Vector2 direction = shootDirection == default ? shootDirection - Pos : shootDirection;
-        if (direction != Vector2.Zero) direction = Vector2.Normalize(direction);
+        if (shootDirection == Vector2.Zero) return;
 
-        Vector2 spawnPos = GameMath.AimLine(this, shootDirection, Math.Max(this.Width, this.Height));
+        Vector2 direction = Vector2.Normalize(shootDirection);
+
+        Vector2 centerPos = new Vector2(Pos.X + Width / 2f, Pos.Y + Height / 2f);
+
+        float spawnOffset = Math.Max(this.Width, this.Height);
+        Vector2 spawnPos = centerPos + (direction * spawnOffset);
 
         currentRoom.OtherEntities.Add(new Bullet(spawnPos, 10, 10, direction, true));
     }
@@ -92,7 +96,7 @@ public class Player : Entity
 
 public class Enemy : Entity
 {
-    public float Speed = 200f;
+    public float Speed = 40f;
     public float Health = 50f;
 
     public Enemy(float x, float y, int width, int height)
@@ -122,14 +126,14 @@ public class Enemy : Entity
     public void UpdateMoveAI(float dt, Room currentRoom)
     {
         if (IsDead || currentRoom.Players.Count == 0) return;
-
+        
         Player? closestPlayer = null;
         float minDistanceSquared = float.MaxValue;
-
+        
         foreach (var player in currentRoom.Players)
         {
             if (player.IsDead) continue;
-
+        
             float distanceSquared = Vector2.DistanceSquared(Pos, player.Pos);
             if (distanceSquared < minDistanceSquared)
             {
@@ -137,12 +141,12 @@ public class Enemy : Entity
                 closestPlayer = player;
             }
         }
-
+        
         if (closestPlayer != null)
         {
             float stopDistance = 80f;
             float stopDistanceSquared = stopDistance * stopDistance;
-
+        
             if (minDistanceSquared > stopDistanceSquared)
             {
                 Vector2 direction = closestPlayer.Pos - Pos;

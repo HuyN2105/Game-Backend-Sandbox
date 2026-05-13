@@ -300,6 +300,7 @@ namespace BackendSandbox.Core
                         var currentRoom = _gameLoopService.GetRoomForPlayer(PlayerId);
                         var player = currentRoom?.Players.FirstOrDefault(p => p.Id == PlayerId);
                         
+                        
                         if (player != null && currentRoom != null)
                         {
                             // Check if this movement pushes the player through a door

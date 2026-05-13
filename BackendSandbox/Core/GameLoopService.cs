@@ -90,7 +90,7 @@ public class GameLoopService : BackgroundService
         {
             var player = room.Players.FirstOrDefault(p => p.Id == playerId);
             if (player is null) return false;
-
+            
             player.Move(direction, dt, room);
             return true;
         }
