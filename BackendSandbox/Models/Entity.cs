@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 using System.Drawing;
 using BackendSandbox.Core;
 
@@ -47,7 +47,7 @@ public class Entity
 
 public class Player : Entity
 {
-    public float Speed = 60f;
+    public float Speed = 150f;
     public float Health = 100f;
 
     public Player(float x, float y, int width, int height)
@@ -72,18 +72,38 @@ public class Player : Entity
     }
 
     // TODO: fix the shoot also every other stuff that can cause problems for frontend and websocket
-    public void Shoot(Room currentRoom, Vector2 shootDirection = default)
+    public void Shoot(Room currentRoom, Vector2 shootDirection = default, bool isSpecial = false)
     {
         if (shootDirection == Vector2.Zero) return;
 
         Vector2 direction = Vector2.Normalize(shootDirection);
-
         Vector2 centerPos = new Vector2(Pos.X + Width / 2f, Pos.Y + Height / 2f);
-
         float spawnOffset = Math.Max(this.Width, this.Height);
-        Vector2 spawnPos = centerPos + (direction * spawnOffset);
 
-        currentRoom.OtherEntities.Add(new Bullet(spawnPos, 10, 10, direction, true));
+        if (isSpecial)
+        {
+            // Bắn ra 5 tia đạn (spread), mỗi tia lệch nhau 10 độ (0.1745 rad)
+            // Các góc lệch: -20, -10, 0, 10, 20 độ
+            float spreadAngle = 10f * (float)Math.PI / 180f;
+            for (int i = -2; i <= 2; i++)
+            {
+                float angle = i * spreadAngle;
+                float cos = (float)Math.Cos(angle);
+                float sin = (float)Math.Sin(angle);
+                Vector2 rotatedDir = new Vector2(
+                    direction.X * cos - direction.Y * sin,
+                    direction.X * sin + direction.Y * cos
+                );
+
+                Vector2 spawnPos = centerPos + (rotatedDir * spawnOffset);
+                currentRoom.OtherEntities.Add(new Bullet(spawnPos, 10, 10, rotatedDir, true));
+            }
+        }
+        else
+        {
+            Vector2 spawnPos = centerPos + (direction * spawnOffset);
+            currentRoom.OtherEntities.Add(new Bullet(spawnPos, 10, 10, direction, true));
+        }
     }
 
     // TODO: send back information to client

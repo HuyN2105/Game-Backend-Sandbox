@@ -11,9 +11,9 @@ public class GameLoopService : BackgroundService
 {
     // Dictionary of active rooms mapped by PlayerId
     private readonly ConcurrentDictionary<Guid, Room> _activeRooms = new();
-    private readonly MongoRoomLoader _mongoLoader;
+    private readonly MongoRoomLoader? _mongoLoader;
 
-    public GameLoopService(MongoRoomLoader mongoLoader)
+    public GameLoopService(MongoRoomLoader? mongoLoader = null)
     {
         _mongoLoader = mongoLoader;
     }
@@ -56,7 +56,7 @@ public class GameLoopService : BackgroundService
         var player = new Player(x, y, width, height);
 
         // Create a brand new unique room for this new connection
-        var room = _mongoLoader.LoadInitialRoom();
+        var room = _mongoLoader != null ? _mongoLoader.LoadInitialRoom() : RoomLoader.InitialLoad();
 
         // Optional: Add a test enemy to the new room
         room.Enemies.Add(new Enemy(400, 300, 50, 50));
@@ -79,6 +79,26 @@ public class GameLoopService : BackgroundService
     {
         _activeRooms.TryGetValue(playerId, out var room);
         return room;
+    }
+
+    public bool SwitchPlayerRoom(Guid playerId, Room nextRoom)
+    {
+        var oldRoom = GetRoomForPlayer(playerId);
+        if (oldRoom is null) return false;
+
+        lock (oldRoom)
+        {
+            var player = oldRoom.Players.FirstOrDefault(p => p.Id == playerId);
+            if (player is null) return false;
+
+            oldRoom.Players.Remove(player);
+            lock (nextRoom)
+            {
+                nextRoom.Players.Add(player);
+            }
+            _activeRooms[playerId] = nextRoom;
+            return true;
+        }
     }
 
     public bool MovePlayer(Guid playerId, Vector2 direction, float dt)
@@ -111,7 +131,7 @@ public class GameLoopService : BackgroundService
         }
     }
 
-    public bool Shoot(Guid playerId, Vector2 shootDirection)
+    public bool Shoot(Guid playerId, Vector2 shootDirection, bool isSpecial = false)
     {
         var room = GetRoomForPlayer(playerId);
         if (room is null) return false;
@@ -121,7 +141,7 @@ public class GameLoopService : BackgroundService
             var player = room.Players.FirstOrDefault(p => p.Id == playerId);
             if (player is null) return false;
 
-            player.Shoot(room, shootDirection);
+            player.Shoot(room, shootDirection, isSpecial);
             return true;
         }
     }
@@ -166,6 +186,7 @@ public class GameLoopService : BackgroundService
                 room.OtherEntities
                     .OfType<Bullet>()
                     .Select(bullet => new BulletSnapshot(
+                        bullet.Id,
                         bullet.Pos.X,
                         bullet.Pos.Y,
                         bullet.MovingDirection.X,
@@ -199,6 +220,7 @@ public sealed record EnemySnapshot(
     float Health);
 
 public sealed record BulletSnapshot(
+    Guid Id,
     float X,
     float Y,
     float DirectionX,

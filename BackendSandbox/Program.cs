@@ -40,7 +40,10 @@ class Program
 
         string? mongoConnString = Environment.GetEnvironmentVariable("MONGODB_URI") 
                                   ?? builder.Configuration.GetConnectionString("MongoDb");
-        builder.Services.AddSingleton(new MongoRoomLoader(mongoConnString, "Pbl"));
+        if (!string.IsNullOrEmpty(mongoConnString))
+        {
+            builder.Services.AddSingleton(new MongoRoomLoader(mongoConnString, "Pbl"));
+        }
 
         builder.Services.AddSingleton<GameLoopService>();
         builder.Services.AddHostedService(provider => provider.GetRequiredService<GameLoopService>());

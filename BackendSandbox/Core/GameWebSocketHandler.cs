@@ -32,20 +32,25 @@ namespace BackendSandbox.Models
         [JsonPropertyName("Bullets")] public List<BulletEntity> Bullets { get; set; } = new List<BulletEntity>();
     }
 
-    // You'll need a model for what a bullet looks like
     public class BulletEntity
     {
+        [JsonPropertyName("Id")] public Guid Id { get; set; }
+
         [JsonPropertyName("X")] public int X { get; set; }
 
         [JsonPropertyName("Y")] public int Y { get; set; }
         
-        [JsonPropertyName("DirectionX")] public int DirectionX { get; set; }
+        [JsonPropertyName("DirectionX")] public float DirectionX { get; set; }
         
-        [JsonPropertyName("DirectionY")] public int DirectionY { get; set; }
+        [JsonPropertyName("DirectionY")] public float DirectionY { get; set; }
+
+        [JsonPropertyName("IsOwnedByPlayer")] public bool IsOwnedByPlayer { get; set; }
     }
 
     public class SpawnEntity
     {
+        [JsonPropertyName("Id")] public Guid Id { get; set; }
+
         [JsonPropertyName("X")] public int X { get; set; }
 
         [JsonPropertyName("Y")] public int Y { get; set; }
@@ -207,6 +212,7 @@ namespace BackendSandbox.Core
 
                 Spawns = snapshot.Enemies.Select(e => new SpawnEntity
                 {
+                    Id = e.Id,
                     X = (int)e.X,
                     Y = (int)e.Y,
                     CurrentHp = (float)e.Health,
@@ -215,10 +221,12 @@ namespace BackendSandbox.Core
 
                 Bullets = snapshot.Bullets.Select(e => new BulletEntity
                 {
+                    Id = e.Id,
                     X = (int)e.X,
                     Y = (int)e.Y,
-                    DirectionX = (int)e.DirectionX,
-                    DirectionY = (int)e.DirectionY
+                    DirectionX = e.DirectionX,
+                    DirectionY = e.DirectionY,
+                    IsOwnedByPlayer = e.IsOwnedByPlayer
                 }).ToList()
             };
 
@@ -309,6 +317,7 @@ namespace BackendSandbox.Core
                             {
                                 // Send the NEW map data to the frontend
                                 await SendRoomSwitchAsync(socket, sendLock, nextRoom, cancellationToken);
+                                _gameLoopService.SwitchPlayerRoom(PlayerId, nextRoom);
                             }
                         }
                         
@@ -329,7 +338,12 @@ namespace BackendSandbox.Core
                         var shootDirection = new Vector2(
                             GetRequiredSingle(document.RootElement, "X"),
                             GetRequiredSingle(document.RootElement, "Y"));
-                        _gameLoopService.Shoot(PlayerId, shootDirection);
+                        var isSpecial = false;
+                        if (document.RootElement.TryGetProperty("IsSpecial", out var isSpecialProp))
+                        {
+                            isSpecial = isSpecialProp.GetBoolean();
+                        }
+                        _gameLoopService.Shoot(PlayerId, shootDirection, isSpecial);
                         break;
                     }
                     case "SpawnEnemy":

@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 using BackendSandbox.Models;
 using BackendSandbox.Utils;
 
@@ -23,7 +23,7 @@ public static class GameLogic
                 IsWall(targetX + entity.Width, entity.Pos.Y + entity.Height - epsilon, currentRoom))
             {
                 // Snap to the Left edge of the tile we hit
-                int tileX = (int)((targetX + entity.Width) / currentRoom.TileSize);
+                int tileX = (int)Math.Floor((targetX + entity.Width) / currentRoom.TileSize);
                 float wallLeftEdge = tileX * currentRoom.TileSize;
 
                 // Distance = WallLeft - MyRight
@@ -37,7 +37,7 @@ public static class GameLogic
                 IsWall(targetX, entity.Pos.Y + entity.Height - epsilon, currentRoom))
             {
                 // Snap to the Right edge of the tile we hit
-                int tileX = (int)(targetX / currentRoom.TileSize);
+                int tileX = (int)Math.Floor(targetX / currentRoom.TileSize);
                 float wallRightEdge = (tileX + 1) * currentRoom.TileSize;
 
                 // Distance = WallRight - MyLeft
@@ -94,7 +94,7 @@ public static class GameLogic
                 IsWall(correctedX + entity.Width - epsilon, targetY + entity.Height, currentRoom))
             {
                 // Snap to the Top edge of the tile
-                int tileY = (int)((targetY + entity.Height) / currentRoom.TileSize);
+                int tileY = (int)Math.Floor((targetY + entity.Height) / currentRoom.TileSize);
                 float wallTopEdge = tileY * currentRoom.TileSize;
 
                 moveVector.Y = wallTopEdge - (entity.Pos.Y + entity.Height) - 0.01f;
@@ -107,7 +107,7 @@ public static class GameLogic
                 IsWall(correctedX + entity.Width - epsilon, targetY, currentRoom))
             {
                 // Snap to the Bottom edge of the tile
-                int tileY = (int)(targetY / currentRoom.TileSize);
+                int tileY = (int)Math.Floor(targetY / currentRoom.TileSize);
                 float wallBottomEdge = (tileY + 1) * currentRoom.TileSize;
 
                 moveVector.Y = wallBottomEdge - entity.Pos.Y + 0.01f;
@@ -309,24 +309,24 @@ public static class GameLogic
     {
         // Clamp coordinates to prevent "Out of Bounds" returning Wall
         // We clamp to [0, Width-1]
-        int gridX = Math.Clamp((int)(pos.X / room.TileSize), 0, room.WidthInTiles - 1);
-        int gridY = Math.Clamp((int)(pos.Y / room.TileSize), 0, room.HeightInTiles - 1);
+        int gridX = Math.Clamp((int)Math.Floor(pos.X / room.TileSize), 0, room.WidthInTiles - 1);
+        int gridY = Math.Clamp((int)Math.Floor(pos.Y / room.TileSize), 0, room.HeightInTiles - 1);
 
         return room.GetTileAt(gridX, gridY).TileType == TileTypes.Door;
     }
 
     private static bool IsStairUp(Vector2 pos, Room room)
     {
-        int gridX = Math.Clamp((int)(pos.X / room.TileSize), 0, room.WidthInTiles - 1);
-        int gridY = Math.Clamp((int)(pos.Y / room.TileSize), 0, room.HeightInTiles - 1);
+        int gridX = Math.Clamp((int)Math.Floor(pos.X / room.TileSize), 0, room.WidthInTiles - 1);
+        int gridY = Math.Clamp((int)Math.Floor(pos.Y / room.TileSize), 0, room.HeightInTiles - 1);
 
         return room.GetTileAt(gridX, gridY).TileType == TileTypes.StairUp;
     }
 
     private static bool IsStairDown(Vector2 pos, Room room)
     {
-        int gridX = Math.Clamp((int)(pos.X / room.TileSize), 0, room.WidthInTiles - 1);
-        int gridY = Math.Clamp((int)(pos.Y / room.TileSize), 0, room.HeightInTiles - 1);
+        int gridX = Math.Clamp((int)Math.Floor(pos.X / room.TileSize), 0, room.WidthInTiles - 1);
+        int gridY = Math.Clamp((int)Math.Floor(pos.Y / room.TileSize), 0, room.HeightInTiles - 1);
 
         return room.GetTileAt(gridX, gridY).TileType == TileTypes.StairDown;
     }
@@ -343,15 +343,15 @@ public static class GameLogic
 
     private static bool IsWall(float x, float y, Room room)
     {
-        var gridX = (int)(x / room.TileSize);
-        var gridY = (int)(y / room.TileSize);
+        var gridX = (int)Math.Floor(x / room.TileSize);
+        var gridY = (int)Math.Floor(y / room.TileSize);
         return room.GetTileAt(gridX, gridY).IsSolid;
     }
 
     private static bool IsWall(Vector2 pos, Room room)
     {
-        var gridX = (int)(pos.X / room.TileSize);
-        var gridY = (int)(pos.Y / room.TileSize);
+        var gridX = (int)Math.Floor(pos.X / room.TileSize);
+        var gridY = (int)Math.Floor(pos.Y / room.TileSize);
         return room.GetTileAt(gridX, gridY).IsSolid;
     }
 }

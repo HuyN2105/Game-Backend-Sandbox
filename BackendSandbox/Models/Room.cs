@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Numerics;
 using System.Drawing; // For Color
 using BackendSandbox.Core;
@@ -22,6 +22,9 @@ public class Room
     public List<Enemy> Enemies { get; } = new();
     public List<Player> Players { get; set; } = new();
     public List<Entity> OtherEntities { get; } = new();
+
+    private readonly List<float> _pendingRespawns = new();
+    private float _continuousSpawnTimer = 3.0f;
 
     // Navigation IDs
     public int LeftId { get; set; } = -1;
@@ -89,16 +92,81 @@ public class Room
                pos.Y < 0 || pos.Y > HeightInTiles * TileSize;
     }
 
+    public Vector2? GetRandomWalkablePosition()
+    {
+        var walkableTiles = new List<(int x, int y)>();
+        for (int x = 0; x < WidthInTiles; x++)
+        {
+            for (int y = 0; y < HeightInTiles; y++)
+            {
+                if (GetTileAt(x, y).TileType == TileTypes.Floor)
+                {
+                    walkableTiles.Add((x, y));
+                }
+            }
+        }
+
+        if (walkableTiles.Count == 0) return null;
+
+        var random = new System.Random();
+        var tile = walkableTiles[random.Next(walkableTiles.Count)];
+        float pixelX = tile.x * TileSize + TileSize / 2f;
+        float pixelY = tile.y * TileSize + TileSize / 2f;
+        return new Vector2(pixelX, pixelY);
+    }
+
+    public void SpawnEnemyAtRandomWalkable()
+    {
+        var pos = GetRandomWalkablePosition();
+        if (pos.HasValue)
+        {
+            Enemies.Add(new Enemy(pos.Value.X, pos.Value.Y, 50, 50));
+        }
+    }
+
     public void GameProgress(float dt)
     {
+        // 1. Process continuous spawning (every 3 seconds if count < 15)
+        _continuousSpawnTimer -= dt;
+        if (_continuousSpawnTimer <= 0)
+        {
+            _continuousSpawnTimer = 3.0f;
+            if (Enemies.Count < 15)
+            {
+                SpawnEnemyAtRandomWalkable();
+            }
+        }
+
+        // 2. Process pending 3s respawns
+        for (int i = _pendingRespawns.Count - 1; i >= 0; i--)
+        {
+            _pendingRespawns[i] -= dt;
+            if (_pendingRespawns[i] <= 0)
+            {
+                if (Enemies.Count < 15)
+                {
+                    SpawnEnemyAtRandomWalkable();
+                }
+                _pendingRespawns.RemoveAt(i);
+            }
+        }
+
+        // 3. Process active enemies and detect deaths
         Grid.Clear();
         foreach (var enemy in Enemies) Grid.Insert(enemy);
         foreach (var player in Players) Grid.Insert(player);
 
         for (int i = Enemies.Count - 1; i >= 0; i--)
         {
-            if (Enemies[i].IsDead) Enemies.RemoveAt(i);
-            else Enemies[i].UpdateMoveAI(dt, this);
+            if (Enemies[i].IsDead)
+            {
+                Enemies.RemoveAt(i);
+                _pendingRespawns.Add(3.0f); // Queue a 3s respawn
+            }
+            else
+            {
+                Enemies[i].UpdateMoveAI(dt, this);
+            }
         }
 
         for (int i = OtherEntities.Count - 1; i >= 0; i--)

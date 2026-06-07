@@ -1,4 +1,4 @@
-﻿using BackendSandbox.Models;
+using BackendSandbox.Models;
 using System.Drawing; // For Brushes
 using System.Numerics; // For Vector2
 
@@ -50,7 +50,7 @@ public static class RoomLoader
     private static Room LoadRoomFromFile(string filename)
     {
         // Deserialize into the Simple DTO
-        var data = JsonLoader.LoadJsonc<LevelData>($"data/{filename}");
+        var data = JsonLoader.LoadJsonc<LevelData>($"Data/{filename}");
 
         if (data == null)
         {
@@ -99,6 +99,34 @@ public static class RoomLoader
                     // Assuming JSON X/Y are in Pixels based on your file
                     room.Enemies.Add(new Enemy(spawn.X, spawn.Y, 50, 50));
                 }
+            }
+        }
+
+        // Sinh thêm quái vật ngẫu nhiên trên các ô sàn đi bộ được (walkable floor tiles)
+        var random = new System.Random();
+        var walkableTiles = new System.Collections.Generic.List<(int x, int y)>();
+        
+        for (int x = 0; x < data.Width; x++)
+        {
+            for (int y = 0; y < data.Height; y++)
+            {
+                if (room.GetTileAt(x, y).TileType == TileTypes.Floor)
+                {
+                    walkableTiles.Add((x, y));
+                }
+            }
+        }
+
+        if (walkableTiles.Count > 0)
+        {
+            // Sinh ngẫu nhiên từ 8 đến 12 con quái vật mỗi phòng
+            int numEnemiesToSpawn = random.Next(8, 13);
+            for (int i = 0; i < numEnemiesToSpawn; i++)
+            {
+                var tile = walkableTiles[random.Next(walkableTiles.Count)];
+                float pixelX = tile.x * room.TileSize + room.TileSize / 2f;
+                float pixelY = tile.y * room.TileSize + room.TileSize / 2f;
+                room.Enemies.Add(new Enemy(pixelX, pixelY, 50, 50));
             }
         }
 
